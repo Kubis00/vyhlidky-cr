@@ -64,10 +64,22 @@ const $=id=>document.getElementById(id);
 
 const map=new maplibregl.Map({
   container:'map',center:[15.5,49.8],zoom:6.5,
-  style:{version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© přispěvatelé OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]}
+  style:{version:8,glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© přispěvatelé OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]}
 });
 map.addControl(new maplibregl.NavigationControl());
 map.addControl(new maplibregl.GeolocateControl({trackUserLocation:false}));
+let mapReady=false;
+map.on('load',()=>{
+  map.addSource('pl',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterMaxZoom:12,clusterRadius:45});
+  map.addLayer({id:'cl',type:'circle',source:'pl',filter:['has','point_count'],paint:{'circle-color':'#1f7a5a','circle-radius':['step',['get','point_count'],15,20,19,100,24],'circle-stroke-color':'#fff','circle-stroke-width':2}});
+  map.addLayer({id:'cl-n',type:'symbol',source:'pl',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Open Sans Regular'],'text-size':12},paint:{'text-color':'#fff'}});
+  map.addLayer({id:'pt',type:'circle',source:'pl',filter:['!',['has','point_count']],paint:{'circle-color':['match',['get','category'],'vyhled','#e4572e','rozhledna','#2e86de','priroda','#2a9d6f','#a55eea'],'circle-radius':7,'circle-stroke-color':'#fff','circle-stroke-width':2}});
+  map.on('click','cl',async e=>{const f=e.features[0];const z=await map.getSource('pl').getClusterExpansionZoom(f.properties.cluster_id);map.easeTo({center:f.geometry.coordinates,zoom:z})});
+  map.on('click','pt',e=>select(e.features[0].properties.id,true));
+  ['cl','pt'].forEach(l=>{map.on('mouseenter',l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',l,()=>map.getCanvas().style.cursor='')});
+  mapReady=true;drawMarkers();
+});
+map.on('moveend',()=>{if(!sel)drawList()});
 
 function visible(){return places.filter(p=>filt==='all'||(filt==='fav'?favs.has(p.id):p.category===filt))}
 
@@ -76,18 +88,16 @@ function drawChips(){
   $('chips').innerHTML=items.map(([k,n])=>`<button class="chip${filt===k?' on':''}" data-k="${k}">${n}</button>`).join('');
 }
 function drawMarkers(){
-  markers.forEach(m=>m.remove());markers=[];
-  visible().forEach(p=>{
-    const el=document.createElement('div');el.className='pin';el.style.background=CATS[p.category][1];
-    el.title=p.name;el.onclick=()=>select(p.id,true);
-    markers.push(new maplibregl.Marker({element:el}).setLngLat([p.lng,p.lat]).addTo(map));
-  });
+  if(!mapReady)return;
+  map.getSource('pl').setData({type:'FeatureCollection',features:visible().map(p=>({type:'Feature',properties:{id:p.id,category:p.category},geometry:{type:'Point',coordinates:[p.lng,p.lat]}}))});
 }
 function stars(id){const r=ratings[id];return r?`★ ${r.avg_rating} (${r.review_count})`:'bez hodnocení'}
 
 function drawList(){
-  const v=visible();
-  $('panel').innerHTML=`<p style="color:#63706a;font-size:13px;margin-top:0">${v.length} míst</p>`+
+  const bd=map.getBounds();
+  const all=visible().filter(p=>bd.contains([p.lng,p.lat]));
+  const v=all.sort((a,b)=>(ratings[b.id]?.avg_rating||0)-(ratings[a.id]?.avg_rating||0)).slice(0,50);
+  $('panel').innerHTML=`<p style="color:#63706a;font-size:13px;margin-top:0">${all.length} míst v zobrazené oblasti${all.length>50?' (zobrazeno 50 nejlépe hodnocených)':''}</p>`+
     v.map(p=>`<div class="item" data-id="${p.id}"><span><b>${esc(p.name)}</b><br><small>${CATS[p.category][0]}</small></span><small>${stars(p.id)}</small></div>`).join('');
 }
 async function select(id,fly){
@@ -109,9 +119,15 @@ async function select(id,fly){
   ${(revs||[]).map(r=>`<div class="rev">${'★'.repeat(r.rating)} <small>${new Date(r.created_at).toLocaleDateString('cs-CZ')}</small><br>${esc(r.body)}</div>`).join('')||'<p style="font-size:13px;color:#63706a">Zatím žádné recenze.</p>'}`;
 }
 async function loadAll(){
-  const {data,error}=await db.from('places').select('*');
-  if(error){$('panel').textContent='Chyba načítání: '+error.message;return}
-  places=data;
+  let acc=[],from=0;
+  for(;;){
+    const {data,error}=await db.from('places').select('*').order('id').range(from,from+999);
+    if(error){$('panel').textContent='Chyba načítání: '+error.message;return}
+    acc=acc.concat(data);
+    if(data.length<1000)break;
+    from+=1000;
+  }
+  places=acc;
   const {data:r}=await db.from('place_ratings').select('*');
   ratings={};(r||[]).forEach(x=>ratings[x.place_id]=x);
   refresh();
