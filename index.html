@@ -31,6 +31,7 @@ input,select,textarea{width:100%;padding:9px;border:1px solid #cfcabd;border-rad
 dialog{border:0;border-radius:14px;padding:18px;width:min(360px,92vw)}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .msg{font-size:13px;color:#b3261e}
+.cn{color:#fff;font-size:12px;font-weight:700;pointer-events:none;text-shadow:0 0 2px #0008}
 </style>
 </head>
 <body>
@@ -64,7 +65,7 @@ const $=id=>document.getElementById(id);
 
 const map=new maplibregl.Map({
   container:'map',center:[15.5,49.8],zoom:6.5,
-  style:{version:8,glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© přispěvatelé OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]}
+  style:{version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© přispěvatelé OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]}
 });
 map.addControl(new maplibregl.NavigationControl());
 map.addControl(new maplibregl.GeolocateControl({trackUserLocation:false}));
@@ -72,7 +73,6 @@ let mapReady=false;
 map.on('load',()=>{
   map.addSource('pl',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterMaxZoom:12,clusterRadius:45});
   map.addLayer({id:'cl',type:'circle',source:'pl',filter:['has','point_count'],paint:{'circle-color':'#1f7a5a','circle-radius':['step',['get','point_count'],15,20,19,100,24],'circle-stroke-color':'#fff','circle-stroke-width':2}});
-  map.addLayer({id:'cl-n',type:'symbol',source:'pl',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Open Sans Regular'],'text-size':12},paint:{'text-color':'#fff'}});
   map.addLayer({id:'pt',type:'circle',source:'pl',filter:['!',['has','point_count']],paint:{'circle-color':['match',['get','category'],'vyhled','#e4572e','rozhledna','#2e86de','priroda','#2a9d6f','#a55eea'],'circle-radius':7,'circle-stroke-color':'#fff','circle-stroke-width':2}});
   map.on('click','cl',async e=>{const f=e.features[0];const z=await map.getSource('pl').getClusterExpansionZoom(f.properties.cluster_id);map.easeTo({center:f.geometry.coordinates,zoom:z})});
   map.on('click','pt',e=>select(e.features[0].properties.id,true));
@@ -80,6 +80,20 @@ map.on('load',()=>{
   mapReady=true;drawMarkers();
 });
 map.on('moveend',()=>{if(!sel)drawList()});
+let clMarkers={};
+function updClusters(){
+  if(!mapReady||!map.getLayer('cl'))return;
+  const seen={};
+  map.querySourceFeatures('pl',{filter:['has','point_count']}).forEach(f=>{
+    const id=f.properties.cluster_id;if(seen[id])return;seen[id]=1;
+    if(!clMarkers[id]){
+      const el=document.createElement('div');el.className='cn';el.textContent=f.properties.point_count_abbreviated;
+      clMarkers[id]=new maplibregl.Marker({element:el}).setLngLat(f.geometry.coordinates).addTo(map);
+    }
+  });
+  Object.keys(clMarkers).forEach(id=>{if(!seen[id]){clMarkers[id].remove();delete clMarkers[id]}});
+}
+map.on('render',()=>{if(mapReady&&map.isSourceLoaded('pl'))updClusters()});
 
 function visible(){return places.filter(p=>filt==='all'||(filt==='fav'?favs.has(p.id):p.category===filt))}
 
