@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vyhlídky ČR</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1d2a24;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#fff;border-bottom:1px solid #e2ded3}
+h1{font-size:18px;margin:0;margin-right:auto}
+.chips{display:flex;gap:6px;flex-wrap:wrap;width:100%}
+.chip,.btn{border:1px solid #1f7a5a;background:#fff;color:#1f7a5a;padding:6px 12px;border-radius:99px;font-size:13px;cursor:pointer}
+.chip.on,.btn.main{background:#1f7a5a;color:#fff}
+.btn{border-radius:8px;padding:8px 12px}
+.wrap{flex:1;display:flex;min-height:0}
+#map{flex:1}
+#panel{width:360px;overflow-y:auto;padding:14px;background:#fff;border-left:1px solid #e2ded3}
+@media(max-width:800px){.wrap{flex-direction:column}#panel{width:100%;height:42%;border-left:0;border-top:1px solid #e2ded3}}
+.pin{width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px #0006;cursor:pointer}
+.item{padding:10px 2px;border-top:1px solid #eee;cursor:pointer;font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.item small{color:#63706a}
+.tag{color:#fff;font-size:12px;padding:2px 8px;border-radius:99px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.facts div{background:#f6f4ef;border-radius:8px;padding:8px;font-size:13px}
+.facts b{display:block;font-size:11px;color:#63706a;text-transform:uppercase}
+.rev{border-top:1px solid #eee;padding:8px 0;font-size:14px}
+input,select,textarea{width:100%;padding:9px;border:1px solid #cfcabd;border-radius:8px;font:inherit;margin:4px 0}
+dialog{border:0;border-radius:14px;padding:18px;width:min(360px,92vw)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.msg{font-size:13px;color:#b3261e}
+</style>
+</head>
+<body>
+<header>
+<h1>⛰️ Vyhlídky ČR</h1>
+<span id="who" style="font-size:13px"></span>
+<button class="btn main" id="authBtn">Přihlásit</button>
+<div class="chips" id="chips"></div>
+</header>
+<div class="wrap"><div id="map"></div><div id="panel"></div></div>
+
+<dialog id="dlg">
+<h3 style="margin-top:0">Přihlášení</h3>
+<input id="em" type="email" placeholder="E-mail" autocomplete="email">
+<input id="pw" type="password" placeholder="Heslo (min. 6 znaků)" autocomplete="current-password">
+<p class="msg" id="amsg"></p>
+<div class="row"><button class="btn main" id="doIn">Přihlásit</button><button class="btn" id="doUp">Registrovat</button><button class="btn" id="doX">Zavřít</button></div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.75.0/dist/umd/supabase.js"></script>
+<script>
+const SB_URL='https://mrzzqdxnkmuaagzmmmwz.supabase.co';
+const SB_KEY='sb_publishable_1Kew9sMSypNpNHzE7d7DXQ_J2JXXjfu';
+const db=supabase.createClient(SB_URL,SB_KEY);
+const CATS={vyhled:['Výhled','#e4572e'],rozhledna:['Rozhledna','#2e86de'],priroda:['Příroda','#2a9d6f'],poklad:['Skrytý poklad','#a55eea']};
+let places=[],ratings={},favs=new Set(),user=null,filt='all',sel=null,markers=[];
+
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+
+const map=new maplibregl.Map({
+  container:'map',center:[15.5,49.8],zoom:6.5,
+  style:{version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© přispěvatelé OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]}
+});
+map.addControl(new maplibregl.NavigationControl());
+map.addControl(new maplibregl.GeolocateControl({trackUserLocation:false}));
+
+function visible(){return places.filter(p=>filt==='all'||(filt==='fav'?favs.has(p.id):p.category===filt))}
+
+function drawChips(){
+  const items=[['all','Vše'],...Object.entries(CATS).map(([k,v])=>[k,v[0]]),['fav','★ Oblíbené']];
+  $('chips').innerHTML=items.map(([k,n])=>`<button class="chip${filt===k?' on':''}" data-k="${k}">${n}</button>`).join('');
+}
+function drawMarkers(){
+  markers.forEach(m=>m.remove());markers=[];
+  visible().forEach(p=>{
+    const el=document.createElement('div');el.className='pin';el.style.background=CATS[p.category][1];
+    el.title=p.name;el.onclick=()=>select(p.id,true);
+    markers.push(new maplibregl.Marker({element:el}).setLngLat([p.lng,p.lat]).addTo(map));
+  });
+}
+function stars(id){const r=ratings[id];return r?`★ ${r.avg_rating} (${r.review_count})`:'bez hodnocení'}
+
+function drawList(){
+  const v=visible();
+  $('panel').innerHTML=`<p style="color:#63706a;font-size:13px;margin-top:0">${v.length} míst</p>`+
+    v.map(p=>`<div class="item" data-id="${p.id}"><span><b>${esc(p.name)}</b><br><small>${CATS[p.category][0]}</small></span><small>${stars(p.id)}</small></div>`).join('');
+}
+async function select(id,fly){
+  sel=places.find(p=>p.id===id);if(!sel)return;
+  if(fly)map.flyTo({center:[sel.lng,sel.lat],zoom:Math.max(map.getZoom(),11)});
+  const {data:revs}=await db.from('reviews').select('rating,body,created_at').eq('place_id',id).order('created_at',{ascending:false});
+  const p=sel,fav=favs.has(id);
+  $('panel').innerHTML=`<h2 style="margin:0 0 6px">${esc(p.name)}</h2>
+  <span class="tag" style="background:${CATS[p.category][1]}">${CATS[p.category][0]}</span> <small>${stars(id)}</small>
+  <p style="font-size:14px;line-height:1.5">${esc(p.description)}</p>
+  <div class="facts"><div><b>Nejlepší čas</b>${esc(p.best_time||'–')}</div><div><b>Dostupnost</b>${esc(p.access_info||'–')}</div><div><b>Cena</b>${esc(p.price_info||'–')}</div><div><b>Souřadnice</b>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div></div>
+  <div class="row"><button class="btn main" id="favBtn">${fav?'★ V oblíbených':'☆ Do oblíbených'}</button>
+  <a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${p.lat},${p.lng}">Navigovat</a>
+  <button class="btn" id="backBtn">Zpět</button></div>
+  <h3>Recenze</h3>
+  ${user?`<select id="rt"><option value="5">★★★★★</option><option value="4">★★★★</option><option value="3">★★★</option><option value="2">★★</option><option value="1">★</option></select>
+  <textarea id="rb" rows="3" maxlength="2000" placeholder="Jaké to tam bylo?"></textarea>
+  <button class="btn main" id="rvBtn">Odeslat recenzi</button><p class="msg" id="rmsg"></p>`:'<p style="font-size:13px;color:#63706a">Pro psaní recenzí se přihlas.</p>'}
+  ${(revs||[]).map(r=>`<div class="rev">${'★'.repeat(r.rating)} <small>${new Date(r.created_at).toLocaleDateString('cs-CZ')}</small><br>${esc(r.body)}</div>`).join('')||'<p style="font-size:13px;color:#63706a">Zatím žádné recenze.</p>'}`;
+}
+async function loadAll(){
+  const {data,error}=await db.from('places').select('*');
+  if(error){$('panel').textContent='Chyba načítání: '+error.message;return}
+  places=data;
+  const {data:r}=await db.from('place_ratings').select('*');
+  ratings={};(r||[]).forEach(x=>ratings[x.place_id]=x);
+  refresh();
+}
+async function loadFavs(){
+  favs=new Set();
+  if(user){const {data}=await db.from('favorites').select('place_id');(data||[]).forEach(f=>favs.add(f.place_id))}
+  refresh();
+}
+function refresh(){drawChips();drawMarkers();sel?select(sel.id):drawList()}
+
+document.addEventListener('click',async e=>{
+  const t=e.target,c=t.closest('.chip'),it=t.closest('.item');
+  if(c){filt=c.dataset.k;sel=null;refresh();return}
+  if(it){select(it.dataset.id,true);return}
+  if(t.id==='backBtn'){sel=null;drawList();return}
+  if(t.id==='favBtn'){
+    if(!user){openAuth();return}
+    if(favs.has(sel.id)){await db.from('favorites').delete().eq('place_id',sel.id).eq('user_id',user.id);favs.delete(sel.id)}
+    else{await db.from('favorites').insert({place_id:sel.id,user_id:user.id});favs.add(sel.id)}
+    select(sel.id);return;
+  }
+  if(t.id==='rvBtn'){
+    const {error}=await db.from('reviews').upsert({place_id:sel.id,user_id:user.id,rating:+$('rt').value,body:$('rb').value.trim()},{onConflict:'place_id,user_id'});
+    if(error){$('rmsg').textContent=error.message;return}
+    await loadAll();select(sel.id);
+  }
+});
+
+function openAuth(){$('amsg').textContent='';$('dlg').showModal()}
+$('authBtn').onclick=async()=>{user?await db.auth.signOut():openAuth()};
+$('doX').onclick=()=>$('dlg').close();
+$('doIn').onclick=async()=>{
+  const {error}=await db.auth.signInWithPassword({email:$('em').value,password:$('pw').value});
+  error?$('amsg').textContent=error.message:$('dlg').close();
+};
+$('doUp').onclick=async()=>{
+  const {data,error}=await db.auth.signUp({email:$('em').value,password:$('pw').value});
+  if(error){$('amsg').textContent=error.message;return}
+  if(!data.session){$('amsg').style.color='#1f7a5a';$('amsg').textContent='Zkontroluj e-mail a potvrď registraci.'}
+  else $('dlg').close();
+};
+db.auth.onAuthStateChange((_e,s)=>{
+  user=s?.user||null;
+  $('who').textContent=user?user.email:'';
+  $('authBtn').textContent=user?'Odhlásit':'Přihlásit';
+  loadFavs();
+});
+loadAll();
+</script>
+</body>
+</html>
