@@ -37,6 +37,7 @@ dialog{border:0;border-radius:14px;padding:18px;width:min(360px,92vw)}
 <body>
 <header>
 <h1>⛰️ Vyhlídky ČR</h1>
+<input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn main" id="authBtn">Přihlásit</button>
 <div class="chips" id="chips"></div>
@@ -95,7 +96,9 @@ function updClusters(){
 }
 map.on('render',()=>{if(mapReady&&map.isSourceLoaded('pl'))updClusters()});
 
-function visible(){return places.filter(p=>filt==='all'||(filt==='fav'?favs.has(p.id):p.category===filt))}
+let query='';
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+function visible(){return places.filter(p=>(filt==='all'||(filt==='fav'?favs.has(p.id):p.category===filt))&&(!query||norm(p.name).includes(query)))}
 
 function drawChips(){
   const items=[['all','Vše'],...Object.entries(CATS).map(([k,v])=>[k,v[0]]),['fav','★ Oblíbené']];
@@ -109,9 +112,9 @@ function stars(id){const r=ratings[id];return r?`★ ${r.avg_rating} (${r.review
 
 function drawList(){
   const bd=map.getBounds();
-  const all=visible().filter(p=>bd.contains([p.lng,p.lat]));
+  const all=query?visible():visible().filter(p=>bd.contains([p.lng,p.lat]));
   const v=all.sort((a,b)=>(ratings[b.id]?.avg_rating||0)-(ratings[a.id]?.avg_rating||0)).slice(0,50);
-  $('panel').innerHTML=`<p style="color:#63706a;font-size:13px;margin-top:0">${all.length} míst v zobrazené oblasti${all.length>50?' (zobrazeno 50 nejlépe hodnocených)':''}</p>`+
+  $('panel').innerHTML=`<p style="color:#63706a;font-size:13px;margin-top:0">${all.length} míst ${query?'odpovídá hledání':'v zobrazené oblasti'}${all.length>50?' (zobrazeno prvních 50)':''}</p>`+
     v.map(p=>`<div class="item" data-id="${p.id}"><span><b>${esc(p.name)}</b><br><small>${CATS[p.category][0]}</small></span><small>${stars(p.id)}</small></div>`).join('');
 }
 async function select(id,fly){
@@ -172,6 +175,7 @@ document.addEventListener('click',async e=>{
   }
 });
 
+$('q').addEventListener('input',e=>{query=norm(e.target.value);sel=null;refresh()});
 function openAuth(){$('amsg').textContent='';$('dlg').showModal()}
 $('authBtn').onclick=async()=>{user?await db.auth.signOut():openAuth()};
 $('doX').onclick=()=>$('dlg').close();
