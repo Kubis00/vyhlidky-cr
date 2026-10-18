@@ -111,9 +111,35 @@ const map=new maplibregl.Map({
 });
 map.addControl(new maplibregl.NavigationControl());
 map.addControl(new maplibregl.AttributionControl({compact:true}),'top-left');
-const geo=new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true,timeout:15000},trackUserLocation:false,showUserLocation:true,showAccuracyCircle:false,fitBoundsOptions:{maxZoom:12}});
-geo.on('error',e=>alert(e.code===1?'Přístup k poloze je zakázaný. Povol ho v nastavení prohlížeče pro tuto stránku.':'Polohu se nepodařilo zjistit. Zkus to venku nebo s připojením k internetu.'));
-map.addControl(geo);
+let meMarker=null;
+function locate(){
+  if(!navigator.geolocation||!window.isSecureContext){alert('Tento prohlížeč nebo tato stránka polohu nepodporuje. Otevři stránku přímo v Safari nebo Chrome.');return}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const c=[pos.coords.longitude,pos.coords.latitude];
+    map.flyTo({center:c,zoom:12});
+    if(!meMarker){
+      const el=document.createElement('div');
+      el.style.cssText='width:16px;height:16px;border-radius:50%;background:#2e86de;border:3px solid #fff;box-shadow:0 0 0 2px #2e86de66';
+      meMarker=new maplibregl.Marker({element:el});
+    }
+    meMarker.setLngLat(c).addTo(map);
+  },err=>{
+    alert(err.code===1
+      ?'Přístup k poloze je zakázaný. Na iPhonu: Nastavení → Soukromí a zabezpečení → Polohové služby → zapnout a u Safari zvolit „Při používání". Pak v Safari klepni na „aA" → Nastavení webu → Poloha → Povolit.'
+      :'Polohu se nepodařilo zjistit (kód '+err.code+'). Zkus to venku nebo po chvíli znovu.');
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+}
+class LocCtl{
+  onAdd(){
+    this.c=document.createElement('div');this.c.className='maplibregl-ctrl maplibregl-ctrl-group';
+    const b=document.createElement('button');b.type='button';b.title='Moje poloha';b.setAttribute('aria-label','Moje poloha');
+    b.style.cssText='display:flex;align-items:center;justify-content:center';
+    b.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
+    b.onclick=locate;this.c.appendChild(b);return this.c;
+  }
+  onRemove(){this.c.remove()}
+}
+map.addControl(new LocCtl());
 let mapReady=false;
 map.on('load',()=>{
   map.addSource('pl',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterMaxZoom:12,clusterRadius:45});
@@ -273,7 +299,7 @@ let locAsked=false;
 try{locAsked=localStorage.getItem('locAsked')==='1'}catch(e){}
 const rememberLoc=()=>{try{localStorage.setItem('locAsked','1')}catch(e){}};
 if(!locAsked)setTimeout(()=>{$('locAsk').hidden=false},1500);
-$('locYes').onclick=()=>{$('locAsk').hidden=true;rememberLoc();geo.trigger()};
+$('locYes').onclick=()=>{$('locAsk').hidden=true;rememberLoc();locate()};
 $('locNo').onclick=()=>{$('locAsk').hidden=true;rememberLoc()};
 const SH=['38%','85%','12%'];let shi=0;
 $('grab').onclick=()=>{shi=(shi+1)%3;$('sheet').style.setProperty('--sh',SH[shi])};
