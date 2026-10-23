@@ -59,7 +59,7 @@ input,select,textarea{font-size:16px}
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v11</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v12</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn" id="admBtn" hidden>Správa</button>
@@ -207,7 +207,8 @@ async function select(id,fly){
   if(mob&&shi===2){shi=0;$('sheet').style.setProperty('--sh',SH[0])}
   if(fly)map.flyTo({center:[sel.lng,sel.lat],zoom:Math.max(map.getZoom(),11),padding:{bottom:mob?Math.round(innerHeight*0.38):0}});
   const {data:revs}=await db.from('reviews').select('rating,body,created_at').eq('place_id',id).order('created_at',{ascending:false});
-  const {data:phs}=await db.from('photos').select('id,path').eq('place_id',id).order('created_at',{ascending:false});
+  const {data:phsAll}=await db.from('photos').select('id,path,status,user_id').eq('place_id',id).order('created_at',{ascending:false});
+  const phs=(phsAll||[]).filter(f=>f.status==='approved'||(user&&f.user_id===user.id));
   const p=sel,fav=favs.has(id);
   $('panel').innerHTML=`<h2 style="margin:0 0 6px">${esc(p.name)}</h2>
   <span class="tag" style="background:${CATS[p.category][1]}">${CATS[p.category][0]}</span> <small>${stars(id)}${dist(p)}</small>
@@ -218,7 +219,7 @@ async function select(id,fly){
   <a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${p.lat},${p.lng}">Navigovat</a>
   <button class="btn" id="backBtn">Zpět</button><button class="btn" data-rep="place" data-id="${p.id}">⚑ Nahlásit</button></div>
   <h3>Fotky od uživatelů</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${(phs||[]).map(f=>`<div style="position:relative"><img src="${esc(photoUrl(f.path))}" alt="" loading="lazy" style="width:100%;border-radius:8px;aspect-ratio:4/3;object-fit:cover"><button class="btn" title="Nahlásit fotku" data-rep="photo" data-id="${f.id}" style="position:absolute;right:4px;top:4px;padding:2px 8px;font-size:13px;background:#fffd">⚑</button></div>`).join('')}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${(phs||[]).map(f=>`<div style="position:relative"><img src="${esc(photoUrl(f.path))}" alt="" loading="lazy" style="width:100%;border-radius:8px;aspect-ratio:4/3;object-fit:cover"><button class="btn" title="Nahlásit fotku" data-rep="photo" data-id="${f.id}" style="position:absolute;right:4px;top:4px;padding:2px 8px;font-size:13px;background:#fffd">⚑</button>${f.status==='pending'?'<span style="position:absolute;left:4px;bottom:4px;background:#000a;color:#fff;font-size:11px;padding:2px 6px;border-radius:6px">čeká na schválení</span>':''}</div>`).join('')}</div>
   ${(phs||[]).length?'':'<p style="font-size:13px;color:#63706a">Zatím žádné fotky.</p>'}
   ${user?`<input type="file" id="phFile" accept="image/jpeg,image/png,image/webp"><p class="msg" id="phMsg"></p>`:'<p style="font-size:13px;color:#63706a">Pro nahrání fotky se přihlas.</p>'}
   <h3>Recenze</h3>
@@ -303,8 +304,9 @@ document.addEventListener('change',async e=>{
     const path=`${user.id}/${sel.id}-${Date.now()}.jpg`;
     const up=await db.storage.from('place-photos').upload(path,blob,{contentType:'image/jpeg'});
     if(up.error)throw up.error;
-    const ins=await db.from('photos').insert({place_id:sel.id,user_id:user.id,path});
+    const ins=await db.from('photos').insert({place_id:sel.id,user_id:user.id,path,status:isAdmin?'approved':'pending'});
     if(ins.error)throw ins.error;
+    if(!isAdmin)alert('Díky! Fotka se ostatním zobrazí po schválení.');
     select(sel.id);
   }catch(err){m.style.color='#b3261e';m.textContent=err.message||'Nahrání selhalo'}
 });
@@ -334,12 +336,15 @@ $('admBtn').onclick=()=>{$('admDlg').showModal();loadAdmin()};
 $('admX').onclick=()=>$('admDlg').close();
 async function loadAdmin(){
   const body=$('admBody');body.textContent='Načítám…';
-  const [pl,rp]=await Promise.all([
+  const [pl,rp,pf]=await Promise.all([
     db.from('places').select('*').eq('status','pending').order('created_at'),
-    db.from('reports').select('*').eq('status','open').order('created_at')]);
-  const pend=pl.data||[];admReps=rp.data||[];
+    db.from('reports').select('*').eq('status','open').order('created_at'),
+    db.from('photos').select('id,path,place_id').eq('status','pending').order('created_at')]);
+  const pend=pl.data||[];admReps=rp.data||[];const pendPh=pf.data||[];
   let h=`<h4>Místa ke schválení (${pend.length})</h4>`;
   pend.forEach(p=>{h+=`<div class="rev"><b>${esc(p.name)}</b> <small>${CATS[p.category][0]} · ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</small><br>${esc(p.description)}<br><small>${esc(p.best_time||'')} ${esc(p.access_info||'')} ${esc(p.price_info||'')}</small><div class="row" style="margin-top:6px"><button class="btn main" data-ap="approved" data-id="${p.id}">Schválit</button><button class="btn" data-ap="rejected" data-id="${p.id}">Zamítnout</button></div></div>`});
+  h+=`<h4>Fotky ke schválení (${pendPh.length})</h4>`;
+  pendPh.forEach(f=>{const pp=places.find(x=>x.id===f.place_id);h+=`<div class="rev"><small>${esc(pp?pp.name:'')}</small><br><img src="${esc(photoUrl(f.path))}" alt="" style="max-width:220px;border-radius:8px"><div class="row" style="margin-top:6px"><button class="btn main" data-pa="approved" data-id="${f.id}">Schválit</button><button class="btn" data-pa="del" data-id="${f.id}">Smazat</button></div></div>`});
   h+=`<h4>Nahlášení (${admReps.length})</h4>`;
   const phIds=admReps.filter(r=>r.target_type==='photo').map(r=>r.target_id);
   const plIds=admReps.filter(r=>r.target_type==='place').map(r=>r.target_id);
@@ -358,6 +363,15 @@ $('admBody').addEventListener('click',async e=>{
   if(b.dataset.ap){
     await db.from('places').update({status:b.dataset.ap}).eq('id',b.dataset.id);
     await loadAll();loadAdmin();return;
+  }
+  if(b.dataset.pa){
+    if(b.dataset.pa==='approved')await db.from('photos').update({status:'approved'}).eq('id',b.dataset.id);
+    else{
+      const {data}=await db.from('photos').select('path').eq('id',b.dataset.id);
+      if(data&&data[0])await db.storage.from('place-photos').remove([data[0].path]);
+      await db.from('photos').delete().eq('id',b.dataset.id);
+    }
+    loadAdmin();return;
   }
   if(b.dataset.rp){
     const r=admReps.find(x=>x.id===b.dataset.id);if(!r)return;
