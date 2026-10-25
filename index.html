@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Vyhlídky ČR</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f7a5a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vyhlídky">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
 *{box-sizing:border-box}
@@ -59,7 +67,7 @@ input,select,textarea{font-size:16px}
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v12</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v14</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn" id="admBtn" hidden>Správa</button>
@@ -67,14 +75,22 @@ input,select,textarea{font-size:16px}
 <button class="btn main" id="authBtn">Přihlásit</button>
 <div class="chips" id="chips"></div>
 </header>
-<div class="wrap"><div id="map"></div><div id="sheet"><div id="grab" role="button" aria-label="Zvětšit nebo zmenšit seznam"></div><div id="panel"></div></div></div>
+<div class="wrap"><div id="map"></div><div id="sheet"><div id="grab" role="button" aria-label="Zvětšit nebo zmenšit seznam"></div><div id="panel"></div><div id="legal" style="flex:none;font-size:12px;padding:6px 14px;border-top:1px solid #eee;color:#63706a"><a href="podminky.html" target="_blank">Podmínky</a> · <a href="soukromi.html" target="_blank">Soukromí</a> · <a href="#" id="delAcc" hidden>Smazat účet</a> · Data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div>
 
 <dialog id="dlg">
 <h3 style="margin-top:0">Přihlášení</h3>
 <input id="em" type="email" placeholder="E-mail" autocomplete="email">
 <input id="pw" type="password" placeholder="Heslo (min. 6 znaků)" autocomplete="current-password">
+<label style="font-size:13px;display:flex;gap:8px;align-items:flex-start;margin:6px 0"><input type="checkbox" id="agree" style="width:auto;margin-top:3px"><span>Při registraci: je mi alespoň 15 let a souhlasím s <a href="podminky.html" target="_blank">Podmínkami použití</a> a <a href="soukromi.html" target="_blank">Zásadami ochrany osobních údajů</a>.</span></label>
 <p class="msg" id="amsg"></p>
 <div class="row"><button class="btn main" id="doIn">Přihlásit</button><button class="btn" id="doUp">Registrovat</button><button class="btn" id="doX">Zavřít</button></div>
+<p style="margin:10px 0 0"><a href="#" id="doFg" style="font-size:14px">Zapomenuté heslo?</a></p>
+</dialog>
+<dialog id="pwDlg">
+<h3 style="margin-top:0">Nové heslo</h3>
+<input id="np" type="password" placeholder="Nové heslo (min. 6 znaků)" autocomplete="new-password">
+<p class="msg" id="pmsg"></p>
+<div class="row"><button class="btn main" id="pSave">Uložit heslo</button></div>
 </dialog>
 
 <div id="toast" hidden style="position:fixed;top:90px;left:50%;transform:translateX(-50%);background:#1d2a24;color:#fff;padding:10px 14px;border-radius:10px;z-index:30;font-size:15px"></div>
@@ -276,16 +292,18 @@ $('doIn').onclick=async()=>{
   error?$('amsg').textContent=error.message:$('dlg').close();
 };
 $('doUp').onclick=async()=>{
-  const {data,error}=await db.auth.signUp({email:$('em').value,password:$('pw').value});
+  if(!$('agree').checked){$('amsg').style.color='#b3261e';$('amsg').textContent='Pro registraci zaškrtni souhlas s podmínkami a zásadami.';return}
+  const {data,error}=await db.auth.signUp({email:$('em').value,password:$('pw').value,options:{data:{terms_accepted_at:new Date().toISOString()}}});
   if(error){$('amsg').textContent=error.message;return}
   if(!data.session){$('amsg').style.color='#1f7a5a';$('amsg').textContent='Zkontroluj e-mail a potvrď registraci.'}
   else $('dlg').close();
 };
 db.auth.onAuthStateChange((_e,s)=>{
+  if(_e==='PASSWORD_RECOVERY')setTimeout(()=>$('pwDlg').showModal(),0);
   user=s?.user||null;
   $('who').textContent=user?user.email:'';
   $('authBtn').textContent=user?'Odhlásit':'Přihlásit';
-  loadFavs();checkAdmin();
+  loadFavs();checkAdmin();$('delAcc').hidden=!user;
 });
 const photoUrl=p=>db.storage.from('place-photos').getPublicUrl(p).data.publicUrl;
 function resize(file){return new Promise((ok,no)=>{
@@ -386,6 +404,33 @@ $('admBody').addEventListener('click',async e=>{
     await loadAll();loadAdmin();
   }
 });
+$('doFg').onclick=async e=>{
+  e.preventDefault();
+  const em=$('em').value.trim(),m=$('amsg');
+  if(!em){m.style.color='#b3261e';m.textContent='Nahoře zadej svůj e-mail.';return}
+  const {error}=await db.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
+  m.style.color=error?'#b3261e':'#1f7a5a';
+  m.textContent=error?error.message:'Poslali jsme ti e-mail s odkazem pro nastavení nového hesla.';
+};
+$('pSave').onclick=async()=>{
+  const pw=$('np').value;
+  if(pw.length<6){$('pmsg').textContent='Heslo musí mít alespoň 6 znaků.';return}
+  const {error}=await db.auth.updateUser({password:pw});
+  if(error){$('pmsg').textContent=error.message;return}
+  $('np').value='';$('pwDlg').close();alert('Heslo bylo změněno.');
+};
+$('delAcc').onclick=async e=>{
+  e.preventDefault();
+  if(!user||!confirm('Opravdu chceš smazat účet? Smažou se tvoje recenze, oblíbená místa a nahrané fotky. Tuto akci nelze vrátit.'))return;
+  try{
+    const {data:files}=await db.storage.from('place-photos').list(user.id,{limit:1000});
+    if(files&&files.length)await db.storage.from('place-photos').remove(files.map(f=>`${user.id}/${f.name}`));
+    const {error}=await db.rpc('delete_my_account');
+    if(error)throw error;
+    await db.auth.signOut().catch(()=>{});
+    alert('Účet byl smazán.');
+  }catch(err){alert('Smazání se nepovedlo: '+(err.message||err))}
+};
 const SH=['38%','85%','12%'];let shi=0;
 $('grab').onclick=()=>{shi=(shi+1)%3;$('sheet').style.setProperty('--sh',SH[shi])};
 let picking=false,pickLL=null;
