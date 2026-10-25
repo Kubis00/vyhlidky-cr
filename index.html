@@ -67,7 +67,7 @@ input,select,textarea{font-size:16px}
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v16</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v17</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn" id="admBtn" hidden>Správa</button>
@@ -114,6 +114,12 @@ input,select,textarea{font-size:16px}
 <dialog id="admDlg" style="width:min(640px,96vw);max-height:90vh">
 <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Správa</h3><button class="btn" id="admX">Zavřít</button></div>
 <div id="admBody" style="margin-top:10px"></div>
+</dialog>
+<dialog id="askDlg">
+<h3 id="askT" style="margin-top:0"></h3>
+<p id="askP" style="font-size:14px;color:#63706a"></p>
+<textarea id="askI" rows="3" maxlength="500" hidden></textarea>
+<div class="row"><button class="btn main" id="askOk">Potvrdit</button><button class="btn" id="askNo">Zrušit</button></div>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.75.0/dist/umd/supabase.js"></script>
@@ -338,10 +344,10 @@ $('locNo').onclick=()=>{$('locAsk').hidden=true;rememberLoc()};
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-rep]');if(!b)return;
   if(!user){openAuth();return}
-  const reason=prompt('Co je na tom špatně? (stručně)');
-  if(!reason||!reason.trim())return;
+  const reason=await ask('Nahlásit','Co je na tom špatně? (stručně)',true);
+  if(!reason)return;
   const {error}=await db.from('reports').insert({target_type:b.dataset.rep,target_id:b.dataset.id,reason:reason.trim().slice(0,500),reporter_id:user.id});
-  alert(error?(error.code==='23505'?'Tohle jsi už nahlásil/a.':error.message):'Díky, nahlášení jsme přijali.');
+  note(error?(error.code==='23505'?'Tohle jsi už nahlásil/a.':'Nahlášení se nepovedlo: '+error.message):'Díky, nahlášení jsme přijali.');
 });
 
 let isAdmin=false,admReps=[];
@@ -407,20 +413,30 @@ $('admBody').addEventListener('click',async e=>{
 document.addEventListener('click',async e=>{
   const d=e.target.closest('[data-delph]');
   if(d){
-    if(!confirm('Opravdu smazat tuto fotku?'))return;
+    if(!await ask('Smazat fotku','Opravdu smazat tuto fotku? Nelze to vrátit.'))return;
     await db.storage.from('place-photos').remove([d.dataset.path]);
     const {error}=await db.from('photos').delete().eq('id',d.dataset.delph);
-    if(error){alert(error.message);return}
+    if(error){note('Smazání se nepovedlo: '+error.message);return}
     select(sel.id);return;
   }
   const h=e.target.closest('[data-hide]');
   if(h){
-    if(!confirm('Skrýt toto místo? Přestane být vidět na mapě. Obnovit ho jde v databázi (status = approved).'))return;
+    if(!await ask('Skrýt místo','Místo přestane být vidět na mapě. Obnovit ho jde v databázi (status = approved).'))return;
     const {error}=await db.from('places').update({status:'rejected'}).eq('id',h.dataset.hide);
-    if(error){alert(error.message);return}
+    if(error){note('Skrytí se nepovedlo: '+error.message);return}
     sel=null;await loadAll();
   }
 });
+function ask(title,text,input){return new Promise(res=>{
+  const dlg=$('askDlg'),i=$('askI');
+  $('askT').textContent=title;$('askP').textContent=text||'';i.hidden=!input;i.value='';
+  const done=v=>{$('askOk').onclick=$('askNo').onclick=dlg.oncancel=null;if(dlg.open)dlg.close();res(v)};
+  $('askOk').onclick=()=>done(input?i.value.trim():true);
+  $('askNo').onclick=()=>done(null);
+  dlg.oncancel=()=>done(null);
+  dlg.showModal();
+})}
+function note(t){toast(t);clearTimeout(note.t);note.t=setTimeout(()=>{$('toast').hidden=true},4500)}
 $('doFg').onclick=async e=>{
   e.preventDefault();
   const em=$('em').value.trim(),m=$('amsg');
@@ -438,7 +454,7 @@ $('pSave').onclick=async()=>{
 };
 $('delAcc').onclick=async e=>{
   e.preventDefault();
-  if(!user||!confirm('Opravdu chceš smazat účet? Smažou se tvoje recenze, oblíbená místa a nahrané fotky. Tuto akci nelze vrátit.'))return;
+  if(!user||!await ask('Smazat účet','Smažou se tvoje recenze, oblíbená místa a nahrané fotky. Tuto akci nelze vrátit.'))return;
   try{
     const {data:files}=await db.storage.from('place-photos').list(user.id,{limit:1000});
     if(files&&files.length)await db.storage.from('place-photos').remove(files.map(f=>`${user.id}/${f.name}`));
