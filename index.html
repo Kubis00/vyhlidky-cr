@@ -67,7 +67,7 @@ input,select,textarea{font-size:16px}
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v14</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v15</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn" id="admBtn" hidden>Správa</button>
@@ -103,7 +103,7 @@ input,select,textarea{font-size:16px}
 <dialog id="addDlg">
 <h3 style="margin-top:0">Přidat místo</h3>
 <input id="an" maxlength="120" placeholder="Název místa">
-<select id="ac"><option value="vyhled">Výhled</option><option value="rozhledna">Rozhledna</option><option value="priroda">Příroda</option><option value="poklad">Skrytý poklad</option></select>
+<select id="ac"><option value="vyhled">Výhled</option><option value="rozhledna">Rozhledna</option><option value="priroda">Příroda</option><option value="pamatka">Památka</option><option value="poklad">Skrytý poklad</option></select>
 <textarea id="ad" rows="3" maxlength="1000" placeholder="Popis místa"></textarea>
 <input id="ab" maxlength="120" placeholder="Nejlepší čas (např. západ slunce)">
 <input id="aa" maxlength="160" placeholder="Dostupnost (např. 20 min pěšky)">
@@ -121,7 +121,7 @@ input,select,textarea{font-size:16px}
 const SB_URL='https://mrzzqdxnkmuaagzmmmwz.supabase.co';
 const SB_KEY='sb_publishable_1Kew9sMSypNpNHzE7d7DXQ_J2JXXjfu';
 const db=supabase.createClient(SB_URL,SB_KEY);
-const CATS={vyhled:['Výhled','#e4572e'],rozhledna:['Rozhledna','#2e86de'],priroda:['Příroda','#2a9d6f'],poklad:['Skrytý poklad','#a55eea']};
+const CATS={vyhled:['Výhled','#e4572e'],rozhledna:['Rozhledna','#2e86de'],priroda:['Příroda','#2a9d6f'],poklad:['Skrytý poklad','#a55eea'],pamatka:['Památka','#d4a017']};
 let places=[],ratings={},favs=new Set(),user=null,filt='all',sel=null,markers=[];
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -171,7 +171,7 @@ let mapReady=false;
 map.on('load',()=>{
   map.addSource('pl',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterMaxZoom:12,clusterRadius:45});
   map.addLayer({id:'cl',type:'circle',source:'pl',filter:['has','point_count'],paint:{'circle-color':'#1f7a5a','circle-radius':['step',['get','point_count'],15,20,19,100,24],'circle-stroke-color':'#fff','circle-stroke-width':2}});
-  map.addLayer({id:'pt',type:'circle',source:'pl',filter:['!',['has','point_count']],paint:{'circle-color':['match',['get','category'],'vyhled','#e4572e','rozhledna','#2e86de','priroda','#2a9d6f','#a55eea'],'circle-radius':9,'circle-stroke-color':'#fff','circle-stroke-width':2}});
+  map.addLayer({id:'pt',type:'circle',source:'pl',filter:['!',['has','point_count']],paint:{'circle-color':['match',['get','category'],'vyhled','#e4572e','rozhledna','#2e86de','priroda','#2a9d6f','pamatka','#d4a017','#a55eea'],'circle-radius':9,'circle-stroke-color':'#fff','circle-stroke-width':2}});
   map.on('click','cl',async e=>{const f=e.features[0];const z=await map.getSource('pl').getClusterExpansionZoom(f.properties.cluster_id);map.easeTo({center:f.geometry.coordinates,zoom:z})});
   map.on('click','pt',e=>select(e.features[0].properties.id,true));
   ['cl','pt'].forEach(l=>{map.on('mouseenter',l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',l,()=>map.getCanvas().style.cursor='')});
