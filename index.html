@@ -67,7 +67,7 @@ input,select,textarea{font-size:16px}
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v15</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v16</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn" id="admBtn" hidden>Správa</button>
@@ -233,9 +233,9 @@ async function select(id,fly){
   <div class="facts"><div><b>Nejlepší čas</b>${esc(p.best_time||'neuvedeno')}</div><div><b>Dostupnost</b>${esc(p.access_info||'neuvedeno')}</div><div><b>Cena</b>${esc(p.price_info||'neuvedeno')}</div><div><b>Souřadnice</b>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div></div>
   <div class="row"><button class="btn main" id="favBtn">${fav?'★ V oblíbených':'☆ Do oblíbených'}</button>
   <a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${p.lat},${p.lng}">Navigovat</a>
-  <button class="btn" id="backBtn">Zpět</button><button class="btn" data-rep="place" data-id="${p.id}">⚑ Nahlásit</button></div>
+  <button class="btn" id="backBtn">Zpět</button><button class="btn" data-rep="place" data-id="${p.id}">⚑ Nahlásit</button>${isAdmin?`<button class="btn" data-hide="${p.id}" style="color:#b3261e;border-color:#b3261e">Skrýt místo</button>`:''}</div>
   <h3>Fotky od uživatelů</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${(phs||[]).map(f=>`<div style="position:relative"><img src="${esc(photoUrl(f.path))}" alt="" loading="lazy" style="width:100%;border-radius:8px;aspect-ratio:4/3;object-fit:cover"><button class="btn" title="Nahlásit fotku" data-rep="photo" data-id="${f.id}" style="position:absolute;right:4px;top:4px;padding:2px 8px;font-size:13px;background:#fffd">⚑</button>${f.status==='pending'?'<span style="position:absolute;left:4px;bottom:4px;background:#000a;color:#fff;font-size:11px;padding:2px 6px;border-radius:6px">čeká na schválení</span>':''}</div>`).join('')}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${(phs||[]).map(f=>`<div style="position:relative"><img src="${esc(photoUrl(f.path))}" alt="" loading="lazy" style="width:100%;border-radius:8px;aspect-ratio:4/3;object-fit:cover"><button class="btn" title="Nahlásit fotku" data-rep="photo" data-id="${f.id}" style="position:absolute;right:4px;top:4px;padding:2px 8px;font-size:13px;background:#fffd">⚑</button>${(isAdmin||(user&&f.user_id===user.id))?`<button class="btn" title="Smazat fotku" data-delph="${f.id}" data-path="${esc(f.path)}" style="position:absolute;left:4px;top:4px;padding:2px 8px;font-size:13px;background:#fffd;color:#b3261e;border-color:#b3261e">🗑</button>`:''}${f.status==='pending'?'<span style="position:absolute;left:4px;bottom:4px;background:#000a;color:#fff;font-size:11px;padding:2px 6px;border-radius:6px">čeká na schválení</span>':''}</div>`).join('')}</div>
   ${(phs||[]).length?'':'<p style="font-size:13px;color:#63706a">Zatím žádné fotky.</p>'}
   ${user?`<input type="file" id="phFile" accept="image/jpeg,image/png,image/webp"><p class="msg" id="phMsg"></p>`:'<p style="font-size:13px;color:#63706a">Pro nahrání fotky se přihlas.</p>'}
   <h3>Recenze</h3>
@@ -402,6 +402,23 @@ $('admBody').addEventListener('click',async e=>{
     }
     await db.from('reports').update({status:'resolved'}).eq('target_type',r.target_type).eq('target_id',r.target_id);
     await loadAll();loadAdmin();
+  }
+});
+document.addEventListener('click',async e=>{
+  const d=e.target.closest('[data-delph]');
+  if(d){
+    if(!confirm('Opravdu smazat tuto fotku?'))return;
+    await db.storage.from('place-photos').remove([d.dataset.path]);
+    const {error}=await db.from('photos').delete().eq('id',d.dataset.delph);
+    if(error){alert(error.message);return}
+    select(sel.id);return;
+  }
+  const h=e.target.closest('[data-hide]');
+  if(h){
+    if(!confirm('Skrýt toto místo? Přestane být vidět na mapě. Obnovit ho jde v databázi (status = approved).'))return;
+    const {error}=await db.from('places').update({status:'rejected'}).eq('id',h.dataset.hide);
+    if(error){alert(error.message);return}
+    sel=null;await loadAll();
   }
 });
 $('doFg').onclick=async e=>{
