@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tvůj avatar – Vyhlídky ČR</title>
+<meta name="theme-color" content="#1f7a5a">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f6f4ef;color:#1d2a24;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:900px;margin:auto;padding:14px}
+header{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h1{font-size:20px;margin:0;margin-right:auto}
+a{color:#1f7a5a}
+.coins{font-weight:700;font-size:18px}
+.btn{border:1px solid #1f7a5a;background:#fff;color:#1f7a5a;padding:8px 12px;border-radius:10px;font-size:14px;cursor:pointer}
+.main{display:grid;grid-template-columns:260px 1fr;gap:14px;margin-top:12px}
+@media(max-width:640px){.main{grid-template-columns:1fr}.prev{position:sticky;top:0;z-index:2}.prev img{max-width:150px}}
+.prev{background:#fff;border:1px solid #e2ded3;border-radius:16px;padding:10px;text-align:center;align-self:start}
+.prev img{width:100%;max-width:240px;border-radius:12px;display:block;margin:auto;background:#e5e7eb}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+.tab{flex:none;border:1px solid #e2ded3;background:#fff;color:#1d2a24;padding:7px 12px;border-radius:99px;font-size:14px;cursor:pointer}
+.tab.on{background:#1f7a5a;color:#fff;border-color:#1f7a5a}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:6px}
+.card{background:#fff;border:2px solid #e2ded3;border-radius:12px;padding:6px;text-align:center;cursor:pointer;font-size:12px}
+.card.sel{border-color:#1f7a5a}
+.card img{width:100%;border-radius:8px;display:block;background:#e5e7eb;aspect-ratio:1}
+.card b{display:block;margin-top:4px;font-size:12px;line-height:1.2;min-height:28px}
+.rar{height:4px;border-radius:2px;margin:4px 0}
+h4{margin:14px 0 4px;font-size:14px}
+.sw{display:flex;gap:8px;flex-wrap:wrap}
+.sw i{width:38px;height:38px;border-radius:50%;border:3px solid #e2ded3;cursor:pointer;display:block}
+.sw i.sel{border-color:#1f7a5a;box-shadow:0 0 0 2px #fff inset}
+#msg{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:#1d2a24;color:#fff;padding:10px 16px;border-radius:10px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:5}
+#msg.on{opacity:1}
+p.n{color:#63706a;font-size:13px}
+.err{color:#b3261e;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>Tvůj avatar</h1><span class="coins" id="coins"></span><button class="btn" id="e1">+50 🪙</button><button class="btn" id="e2">+500 🪙</button><a href="./">← Mapa</a></header>
+<div class="main">
+<div class="prev"><img id="pv" alt="Tvůj avatar"><p class="err" id="err" hidden>Avatar se nepodařilo načíst. Zkontroluj připojení k internetu.</p></div>
+<div><div class="tabs" id="tabs"></div><div id="panel"></div></div>
+</div>
+<p class="n">Ukázka obchodu. Mince zatím jen simulujeme (tlačítka nahoře), ve hře se získávají návštěvou míst. Barvy jsou zdarma, tvary a doplňky se odemykají za mince.<br>Ilustrace: Avataaars od Pabla Stanleyho (zdarma pro osobní i komerční použití), přes službu <a href="https://www.dicebear.com" target="_blank" rel="noopener">DiceBear</a>.</p>
+</div>
+<div id="msg"></div>
+<script>
+const API='https://api.dicebear.com/10.x/avataaars/svg';
+const D={
+top:[['shortFlat','Krátké ploché',0],['shortRound','Krátké kulaté',0],['shortCurly','Krátké kudrnaté',0],['straight01','Rovné 1',0],['straight02','Rovné 2',0],['longButNotTooLong','Delší vlasy',0],['hijab','Hidžáb',0],['turban','Turban',0],
+['shortWaved','Krátké vlnité',20],['hat','Čepice',20],['bob','Bob',30],['bun','Drdol',30],['curly','Kudrnaté',30],['curvy','Vlnité',30],['shaggy','Neučesané',30],['sides','Boky',30],['bigHair','Velké vlasy',40],['frizzle','Rozcuchané',40],['straightAndStrand','Rovné s pramenem',40],['theCaesar','Caesar',40],['winterHat1','Zimní čepice 1',45],['winterHat02','Zimní čepice 2',45],['winterHat03','Zimní čepice 3',45],['winterHat04','Zimní čepice 4',45],
+['fro','Afro',50],['theCaesarAndSidePart','Caesar s pěšinkou',50],['dreads','Dredy 1',60],['dreads01','Dredy 2',60],['dreads02','Dredy 3',60],['shavedSides','Vyholené boky',60],['froBand','Afro s čelenkou',70],['shaggyMullet','Mullet',70],['miaWallace','Mia',80],['frida','Frida',90]],
+eyebrows:[['defaultNatural','Běžné',0],['default','Běžné výrazné',0],['flatNatural','Rovné',0],['raisedExcitedNatural','Zvednuté',10],['raisedExcited','Zvednuté výrazné',10],['sadConcernedNatural','Smutné',10],['sadConcerned','Smutné výrazné',10],['frownNatural','Zamračené',15],['angryNatural','Zlé',15],['angry','Zlé výrazné',15],['upDownNatural','Nahoru-dolů',20],['upDown','Nahoru-dolů výrazné',20],['unibrowNatural','Jedno obočí',25]],
+eyes:[['default','Běžné',0],['happy','Šťastné',0],['surprised','Překvapené',0],['closed','Zavřené',10],['squint','Přimhouřené',10],['side','Úkosem',15],['cry','Pláč',20],['wink','Mrknutí',20],['eyeRoll','Protočené',25],['winkWacky','Šílené mrknutí',40],['xDizzy','Závrať',50],['hearts','Srdíčka',60]],
+mouth:[['smile','Úsměv',0],['default','Běžná',0],['serious','Vážná',0],['sad','Smutná',0],['concerned','Znepokojená',10],['disbelief','Nevěřícná',15],['eating','Jí',20],['grimace','Grimasa',20],['tongue','Jazyk',25],['screamOpen','Křik',30],['twinkle','Šibalská',30]],
+acc:[['none','Bez brýlí',0],['round','Kulaté brýle',25],['prescription01','Dioptrické 1',30],['prescription02','Dioptrické 2',30],['wayfarers','Wayfarer',45],['sunglasses','Sluneční brýle',50],['kurt','Kurt',70],['eyepatch','Pirátská páska',100]],
+beard:[['none','Bez vousů',0],['beardLight','Lehké vousy',30],['beardMedium','Vousy',50],['moustacheFancy','Elegantní knír',60],['moustacheMagnum','Knír Magnum',70],['beardMajestic','Majestátní vousy',90]],
+cloth:[['shirtCrewNeck','Tričko',0],['shirtScoopNeck','Tričko s výstřihem',0],['shirtVNeck','Tričko do V',0],['hoodie','Mikina',30],['graphicShirt','Tričko s potiskem',40],['collarAndSweater','Svetr s límcem',50],['overall','Overal',60],['blazerAndShirt','Sako a košile',80],['blazerAndSweater','Sako a svetr',80]],
+gfx:[['bear','Medvěd',10],['hola','Hola',15],['bat','Netopýr',20],['deer','Jelen',20],['pizza','Pizza',25],['cumbia','Cumbia',30],['resist','Resist',30],['diamond','Diamant',40],['skullOutline','Lebka (obrys)',60],['skull','Lebka',60]],
+bg:[['e5e7eb','Šedá',0],['cfe8c4','Světle zelená',0],['bfdcf5','Obloha',20],['f7d6e0','Pudr',20],['c9f0e1','Máta',30],['ffe08a','Slunce',40],['d9ccf5','Levandule',40],['ffb37a','Oranž',60],['1f3b73','Tmavě modrá',90],['14224a','Noc',120],['0f9d6b','Smaragd',150],['ffc400','Zlatá',200]]
+};
+const PAL={skin:['ffdbb4','edb98a','f8d25c','fd9841','d08b5b','ae5d29','614335'],
+hair:['2c1b18','4a312c','724133','a55728','b58143','d6b370','ecdcbf','c93305','f59797','e8e1e1'],
+hat:['262e33','3c4f5c','65c9ff','5199e4','25557c','e6e6e6','ffffff','ff5c5c','ff488e','ffffb1','a7ffc4','ffdeb5'],
+clo:['262e33','3c4f5c','65c9ff','5199e4','25557c','e6e6e6','ffffff','ff5c5c','ff488e','ffffb1','a7ffc4','ffdeb5']};
+const CL=[['skin','Pleť'],['hair','Vlasy a vousy'],['hat','Čepice a šátky'],['clo','Oblečení']];
+const T=[['top','Účes'],['col','Barvy'],['eyebrows','Obočí'],['eyes','Oči'],['mouth','Ústa'],['acc','Brýle'],['beard','Vousy'],['cloth','Oblečení'],['gfx','Potisk'],['bg','Pozadí']];
+const RC={z:'#8a8f98',v:'#2e86de',e:'#a55eea'};
+const rar=p=>p<40?'z':p<100?'v':'e';
+let st={top:'shortFlat',eyebrows:'defaultNatural',eyes:'default',mouth:'smile',acc:'none',beard:'none',cloth:'shirtCrewNeck',gfx:'bear',bg:'cfe8c4',skin:'edb98a',hair:'2c1b18',hat:'262e33',clo:'65c9ff'};
+let owned=new Set(),coins=150,tab='top';
+try{const v=JSON.parse(localStorage.getItem('avatarDemo')||'null');if(v){st={...st,...v.st};owned=new Set(v.owned||[]);coins=v.coins??150}}catch(e){}
+const save=()=>{try{localStorage.setItem('avatarDemo',JSON.stringify({st,owned:[...owned],coins}))}catch(e){}};
+function url(s,size){
+  const q={seed:'vyhlidky',size,topVariant:s.top,topProbability:100,hairColor:s.hair,hatColor:s.hat,
+    eyebrowsVariant:s.eyebrows,eyebrowsProbability:100,eyesVariant:s.eyes,eyesProbability:100,
+    mouthVariant:s.mouth,mouthProbability:100,accessoriesProbability:s.acc==='none'?0:100,
+    facialHairProbability:s.beard==='none'?0:100,facialHairColor:s.hair,
+    clothesVariant:s.cloth,clothesProbability:100,clothesColor:s.clo,clothesGraphicVariant:s.gfx,clothesGraphicProbability:100,
+    skinColor:s.skin,backgroundColor:s.bg};
+  if(s.acc!=='none')q.accessoriesVariant=s.acc;
+  if(s.beard!=='none')q.facialHairVariant=s.beard;
+  return API+'?'+new URLSearchParams(q);
+}
+const $=id=>document.getElementById(id);
+const own=(k,p)=>p===0||owned.has(k);
+function msg(t){const m=$('msg');m.textContent=t;m.classList.add('on');clearTimeout(msg.t);msg.t=setTimeout(()=>m.classList.remove('on'),2200)}
+function draw(){
+  $('coins').textContent='🪙 '+coins;
+  const pv=$('pv');pv.onerror=()=>{$('err').hidden=false};pv.onload=()=>{$('err').hidden=true};pv.src=url(st,300);
+  $('tabs').innerHTML=T.map(t=>`<button class="tab${tab===t[0]?' on':''}" data-t="${t[0]}">${t[1]}</button>`).join('');
+  let h='';
+  if(tab==='col'){
+    h=CL.map(([k,n])=>`<h4>${n}</h4><div class="sw">`+PAL[k].map(c=>`<i class="${st[k]===c?'sel':''}" data-k="${k}" data-v="${c}" style="background:#${c}"></i>`).join('')+'</div>').join('');
+  }else{
+    h='<div class="grid">'+D[tab].map(([v,n,p])=>{
+      const key=tab+':'+v,has=own(key,p),sel=st[tab]===v,o={...st,[tab]:v};
+      if(tab==='gfx')o.cloth='graphicShirt';
+      return `<div class="card${sel?' sel':''}" data-v="${v}" data-p="${p}" data-n="${n}"><img loading="lazy" alt="" src="${url(o,110)}"><b>${n}</b><div class="rar" style="background:${RC[rar(p)]}"></div>${sel?'Nasazeno':has?'Vlastníš':'🪙 '+p}</div>`;
+    }).join('')+'</div>';
+    if(tab==='gfx')h='<p class="n">Potisk se ukáže jen na tričku s potiskem (Oblečení).</p>'+h;
+  }
+  $('panel').innerHTML=h;
+  save();
+}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-t]');if(t){tab=t.dataset.t;draw();return}
+  const c=e.target.closest('i[data-k]');if(c){st[c.dataset.k]=c.dataset.v;draw();return}
+  const s=e.target.closest('.card');
+  if(s){
+    const v=s.dataset.v,p=+s.dataset.p,key=tab+':'+v;
+    if(!own(key,p)){
+      if(coins<p){msg('Chybí ti '+(p-coins)+' mincí');return}
+      coins-=p;owned.add(key);msg('Odemčeno: '+s.dataset.n);
+    }
+    st[tab]=v;if(tab==='gfx')st.cloth='graphicShirt';draw();return;
+  }
+  if(e.target.id==='e1'){coins+=50;draw();msg('+50 mincí za návštěvu místa')}
+  if(e.target.id==='e2'){coins+=500;draw();msg('+500 mincí (demo)')}
+});
+draw();
+</script>
+</body>
+</html>
