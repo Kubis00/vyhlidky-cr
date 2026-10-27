@@ -67,10 +67,10 @@ input,select,textarea{font-size:16px}
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v18</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v20</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
-<a class="btn" id="avBtn" href="avatar.html" style="text-decoration:none">🧑 Avatar</a>
+<button class="btn" id="pasBtn">🏅 Pas</button>
 <button class="btn" id="admBtn" hidden>Správa</button>
 <button class="btn" id="addBtn">+ Přidat místo</button>
 <button class="btn main" id="authBtn">Přihlásit</button>
@@ -121,6 +121,10 @@ input,select,textarea{font-size:16px}
 <p id="askP" style="font-size:14px;color:#63706a"></p>
 <textarea id="askI" rows="3" maxlength="500" hidden></textarea>
 <div class="row"><button class="btn main" id="askOk">Potvrdit</button><button class="btn" id="askNo">Zrušit</button></div>
+</dialog>
+<dialog id="pasDlg" style="width:min(640px,96vw);max-height:90vh">
+<div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Cestovní pas</h3><button class="btn" id="pasX">Zavřít</button></div>
+<div id="pasBody" style="margin-top:10px"></div>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.75.0/dist/umd/supabase.js"></script>
@@ -178,7 +182,7 @@ let mapReady=false;
 map.on('load',()=>{
   map.addSource('pl',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterMaxZoom:12,clusterRadius:45});
   map.addLayer({id:'cl',type:'circle',source:'pl',filter:['has','point_count'],paint:{'circle-color':'#1f7a5a','circle-radius':['step',['get','point_count'],15,20,19,100,24],'circle-stroke-color':'#fff','circle-stroke-width':2}});
-  map.addLayer({id:'pt',type:'circle',source:'pl',filter:['!',['has','point_count']],paint:{'circle-color':['match',['get','category'],'vyhled','#e4572e','rozhledna','#2e86de','priroda','#2a9d6f','pamatka','#d4a017','#a55eea'],'circle-radius':9,'circle-stroke-color':'#fff','circle-stroke-width':2}});
+  map.addLayer({id:'pt',type:'circle',source:'pl',filter:['!',['has','point_count']],paint:{'circle-color':['match',['get','category'],'vyhled','#e4572e','rozhledna','#2e86de','priroda','#2a9d6f','pamatka','#d4a017','#a55eea'],'circle-radius':9,'circle-stroke-color':['case',['==',['get','v'],1],'#ffc400','#fff'],'circle-stroke-width':['case',['==',['get','v'],1],4,2]}});
   map.on('click','cl',async e=>{const f=e.features[0];const z=await map.getSource('pl').getClusterExpansionZoom(f.properties.cluster_id);map.easeTo({center:f.geometry.coordinates,zoom:z})});
   map.on('click','pt',e=>select(e.features[0].properties.id,true));
   ['cl','pt'].forEach(l=>{map.on('mouseenter',l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',l,()=>map.getCanvas().style.cursor='')});
@@ -205,15 +209,15 @@ const km=p=>{const R=6371,r=Math.PI/180,dLa=(p.lat-userPos[1])*r,dLo=(p.lng-user
 const dist=p=>{if(!userPos)return'';const d=km(p);return ' · '+(d<10?d.toFixed(1).replace('.',','):Math.round(d))+' km'};
 let query='';
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-function visible(){return places.filter(p=>(filt==='all'||(filt==='fav'?favs.has(p.id):p.category===filt))&&(!query||norm(p.name).includes(query)))}
+function visible(){return places.filter(p=>(filt==='all'||(filt==='fav'?favs.has(p.id):filt==='vis'?visited.has(p.id):p.category===filt))&&(!query||norm(p.name).includes(query)))}
 
 function drawChips(){
-  const items=[['all','Vše'],...Object.entries(CATS).map(([k,v])=>[k,v[0]]),['fav','★ Oblíbené']];
+  const items=[['all','Vše'],...Object.entries(CATS).map(([k,v])=>[k,v[0]]),['fav','★ Oblíbené'],['vis','✓ Navštívené']];
   $('chips').innerHTML=items.map(([k,n])=>`<button class="chip${filt===k?' on':''}" data-k="${k}">${n}</button>`).join('');
 }
 function drawMarkers(){
   if(!mapReady)return;
-  map.getSource('pl').setData({type:'FeatureCollection',features:visible().map(p=>({type:'Feature',properties:{id:p.id,category:p.category},geometry:{type:'Point',coordinates:[p.lng,p.lat]}}))});
+  map.getSource('pl').setData({type:'FeatureCollection',features:visible().map(p=>({type:'Feature',properties:{id:p.id,category:p.category,v:visited.has(p.id)?1:0},geometry:{type:'Point',coordinates:[p.lng,p.lat]}}))});
 }
 function stars(id){const r=ratings[id];return r?`★ ${r.avg_rating} (${r.review_count})`:'bez hodnocení'}
 
@@ -238,7 +242,7 @@ async function select(id,fly){
   ${p.photo_url&&p.photo_url.startsWith('https://commons.wikimedia.org/')?`<img src="${esc(p.photo_url)}" alt="${esc(p.name)}" loading="lazy" style="width:100%;border-radius:10px;margin:8px 0 2px"><small><a target="_blank" rel="noopener" href="${esc(p.photo_credit)}">Foto: Wikimedia Commons</a></small>`:''}
   <p style="font-size:14px;line-height:1.5">${esc(p.description)}</p>
   <div class="facts"><div><b>Nejlepší čas</b>${esc(p.best_time||'neuvedeno')}</div><div><b>Dostupnost</b>${esc(p.access_info||'neuvedeno')}</div><div><b>Cena</b>${esc(p.price_info||'neuvedeno')}</div><div><b>Souřadnice</b>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div></div>
-  <div class="row"><button class="btn main" id="favBtn">${fav?'★ V oblíbených':'☆ Do oblíbených'}</button>
+  <div class="row"><button class="btn main" id="favBtn">${fav?'★ V oblíbených':'☆ Do oblíbených'}</button><button class="btn${visited.has(p.id)?' main':''}" id="visBtn">${visited.has(p.id)?'✓ Byl jsem tady':'Byl jsem tady'}</button>
   <a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${p.lat},${p.lng}">Navigovat</a>
   <button class="btn" id="backBtn">Zpět</button><button class="btn" data-rep="place" data-id="${p.id}">⚑ Nahlásit</button>${isAdmin?`<button class="btn" data-hide="${p.id}" style="color:#b3261e;border-color:#b3261e">Skrýt místo</button>`:''}</div>
   <h3>Fotky od uživatelů</h3>
@@ -310,7 +314,7 @@ db.auth.onAuthStateChange((_e,s)=>{
   user=s?.user||null;
   $('who').textContent=user?user.email:'';
   $('authBtn').textContent=user?'Odhlásit':'Přihlásit';
-  loadFavs();checkAdmin();$('delAcc').hidden=!user;
+  loadFavs();loadVisits();checkAdmin();$('delAcc').hidden=!user;
 });
 const photoUrl=p=>db.storage.from('place-photos').getPublicUrl(p).data.publicUrl;
 function resize(file){return new Promise((ok,no)=>{
@@ -455,7 +459,7 @@ $('pSave').onclick=async()=>{
 };
 $('delAcc').onclick=async e=>{
   e.preventDefault();
-  if(!user||!await ask('Smazat účet','Smažou se tvoje recenze, oblíbená místa a nahrané fotky. Tuto akci nelze vrátit.'))return;
+  if(!user||!await ask('Smazat účet','Smažou se tvoje recenze, oblíbená místa, navštívená místa a nahrané fotky. Tuto akci nelze vrátit.'))return;
   try{
     const {data:files}=await db.storage.from('place-photos').list(user.id,{limit:1000});
     if(files&&files.length)await db.storage.from('place-photos').remove(files.map(f=>`${user.id}/${f.name}`));
@@ -465,6 +469,77 @@ $('delAcc').onclick=async e=>{
     alert('Účet byl smazán.');
   }catch(err){alert('Smazání se nepovedlo: '+(err.message||err))}
 };
+let visited=new Set(),visitAt={};
+const REG=[['Krkonoše',50.60,50.85,15.30,16.10],['Šumava',48.70,49.35,13.00,14.20],['Jeseníky',49.95,50.30,16.95,17.50],['Beskydy',49.30,49.70,18.10,18.70],['České Švýcarsko',50.78,51.00,14.10,14.55],['Praha',49.94,50.18,14.22,14.71],['Český ráj',50.45,50.62,14.90,15.35],['Moravský kras',49.28,49.45,16.62,16.88],['Pálava',48.78,48.95,16.55,16.80],['Třeboňsko',48.85,49.20,14.45,15.05]];
+const SMALL=new Set(['České Švýcarsko','Český ráj','Moravský kras','Pálava']);
+const KIND=[['vodopad',/vodop/i],['jeskyne',/jeskyn/i],['vrchol',/vrchol/i]];
+const regOf=p=>{const r=REG.find(([,a,b,c,d])=>p.lat>=a&&p.lat<=b&&p.lng>=c&&p.lng<=d);return r?r[0]:null};
+function stats(){
+  const S={total:0,cat:{},reg:{},kind:{}};
+  places.filter(p=>visited.has(p.id)).forEach(p=>{
+    S.total++;S.cat[p.category]=(S.cat[p.category]||0)+1;
+    const r=regOf(p);if(r)S.reg[r]=(S.reg[r]||0)+1;
+    const d=p.description||'';KIND.forEach(([k,re])=>{if(re.test(d))S.kind[k]=(S.kind[k]||0)+1});
+  });
+  return S;
+}
+const BADGES=[
+{id:'p1',icon:'👣',name:'První krok',get:S=>[S.total,1]},
+{id:'p10',icon:'🥾',name:'Turista',get:S=>[S.total,10]},
+{id:'p25',icon:'🧭',name:'Cestovatel',get:S=>[S.total,25]},
+{id:'p50',icon:'🏔️',name:'Průzkumník',get:S=>[S.total,50]},
+{id:'p100',icon:'👑',name:'Legenda',get:S=>[S.total,100]},
+{id:'rozh',icon:'🗼',name:'Lovec rozhleden',get:S=>[S.cat.rozhledna||0,10]},
+{id:'vyhl',icon:'🌄',name:'Znalec výhledů',get:S=>[S.cat.vyhled||0,15]},
+{id:'prir',icon:'🌲',name:'Přítel přírody',get:S=>[S.cat.priroda||0,15]},
+{id:'pam',icon:'🏰',name:'Hradní pán',get:S=>[S.cat.pamatka||0,8]},
+{id:'vodo',icon:'💧',name:'Lovec vodopádů',get:S=>[S.kind.vodopad||0,5]},
+{id:'jesk',icon:'🦇',name:'Jeskyňář',get:S=>[S.kind.jeskyne||0,5]},
+{id:'vrch',icon:'⛰️',name:'Sběratel vrcholů',get:S=>[S.kind.vrchol||0,10]},
+{id:'all',icon:'🌈',name:'Všestranný',get:S=>[['vyhled','rozhledna','priroda','pamatka'].filter(k=>S.cat[k]).length,4]},
+...REG.map(r=>({id:'r_'+r[0],icon:'📍',name:'Oblast: '+r[0],get:S=>[S.reg[r[0]]||0,SMALL.has(r[0])?3:5]}))
+];
+const earned=()=>{const S=stats();return BADGES.filter(b=>{const [h,n]=b.get(S);return h>=n}).map(b=>b.id)};
+async function loadVisits(){
+  visited=new Set();visitAt={};
+  if(user){const {data}=await db.from('visits').select('place_id,created_at');(data||[]).forEach(v=>{visited.add(v.place_id);visitAt[v.place_id]=v.created_at})}
+  refresh();
+}
+async function toggleVisit(){
+  if(!user){openAuth();return}
+  const id=sel.id,before=earned();
+  if(visited.has(id)){
+    const {error}=await db.from('visits').delete().eq('place_id',id).eq('user_id',user.id);
+    if(error){note('Nepovedlo se: '+error.message);return}
+    visited.delete(id);delete visitAt[id];
+  }else{
+    const {error}=await db.from('visits').insert({user_id:user.id,place_id:id});
+    if(error){note('Nepovedlo se: '+error.message);return}
+    visited.add(id);visitAt[id]=new Date().toISOString();
+  }
+  const nw=earned().filter(b=>!before.includes(b));
+  refresh();
+  if(nw.length)note('🏅 Nový odznak: '+BADGES.find(b=>b.id===nw[0]).name);
+}
+document.addEventListener('click',e=>{if(e.target.id==='visBtn')toggleVisit()});
+$('pasBtn').onclick=()=>{if(!user){openAuth();return}$('pasDlg').showModal();drawPas()};
+$('pasX').onclick=()=>$('pasDlg').close();
+function drawPas(){
+  const S=stats(),got=BADGES.filter(b=>{const [h,n]=b.get(S);return h>=n}).length;
+  const cats=Object.entries(CATS).map(([k,v])=>{
+    const all=places.filter(p=>p.category===k).length,have=S.cat[k]||0;
+    return all?`<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${v[0]}</span><span>${have} / ${all}</span></div><div style="height:8px;background:#e8e6df;border-radius:4px"><div style="height:8px;width:${Math.max(have?3:0,Math.min(100,have/all*100))}%;background:${v[1]};border-radius:4px"></div></div></div>`:'';
+  }).join('');
+  const bad=BADGES.map(b=>{const [h,n]=b.get(S),ok=h>=n;
+    return `<div style="border:1px solid ${ok?'#ffc400':'#e2ded3'};border-radius:12px;padding:8px;text-align:center;${ok?'background:#fff8e1':'opacity:.6'}"><div style="font-size:26px;${ok?'':'filter:grayscale(1)'}">${b.icon}</div><b style="font-size:13px">${esc(b.name)}</b><div style="font-size:12px;color:#63706a">${ok?'Splněno':Math.min(h,n)+' / '+n}</div></div>`}).join('');
+  const rec=Object.keys(visitAt).map(id=>places.find(p=>p.id===id)).filter(Boolean).sort((a,b)=>visitAt[b.id].localeCompare(visitAt[a.id])).slice(0,8);
+  $('pasBody').innerHTML=`<p style="font-size:18px;margin:0"><b>${S.total}</b> navštívených míst z ${places.length} · <b>${got}</b> odznaků</p>
+  <h4>Podle typu</h4>${cats}
+  <h4>Odznaky</h4><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px">${bad}</div>
+  <p class="n" style="font-size:12px">Oblasti se určují přibližně podle polohy místa.</p>
+  <h4>Poslední návštěvy</h4>${rec.length?rec.map(p=>`<div class="item" data-fly="${p.id}"><span><b>${esc(p.name)}</b><br><small>${CATS[p.category][0]}</small></span><small>${new Date(visitAt[p.id]).toLocaleDateString('cs-CZ')}</small></div>`).join(''):'<p class="n">Zatím nic. U místa klepni na „Byl jsem tady“.</p>'}`;
+}
+$('pasBody').addEventListener('click',e=>{const f=e.target.closest('[data-fly]');if(f){$('pasDlg').close();select(f.dataset.fly,true)}});
 const SH=['38%','85%','12%'];let shi=0;
 $('grab').onclick=()=>{shi=(shi+1)%3;$('sheet').style.setProperty('--sh',SH[shi])};
 let picking=false,pickLL=null;
