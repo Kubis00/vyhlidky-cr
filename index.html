@@ -67,7 +67,7 @@ input,select,textarea{font-size:16px}
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v20</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v21</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn" id="pasBtn">🏅 Pas</button>
@@ -235,13 +235,15 @@ async function select(id,fly){
   if(fly)map.flyTo({center:[sel.lng,sel.lat],zoom:Math.max(map.getZoom(),11),padding:{bottom:mob?Math.round(innerHeight*0.38):0}});
   const {data:revs}=await db.from('reviews').select('rating,body,created_at').eq('place_id',id).order('created_at',{ascending:false});
   const {data:phsAll}=await db.from('photos').select('id,path,status,user_id').eq('place_id',id).order('created_at',{ascending:false});
+  const {data:myE}=user?await db.from('place_edits').select('field').eq('place_id',id).eq('status','pending').eq('user_id',user.id):{data:[]};
+  pendSug=new Set((myE||[]).map(x=>x.field));
   const phs=(phsAll||[]).filter(f=>f.status==='approved'||(user&&f.user_id===user.id));
   const p=sel,fav=favs.has(id);
   $('panel').innerHTML=`<h2 style="margin:0 0 6px">${esc(p.name)}</h2>
   <span class="tag" style="background:${CATS[p.category][1]}">${CATS[p.category][0]}</span> <small>${stars(id)}${dist(p)}</small>
   ${p.photo_url&&p.photo_url.startsWith('https://commons.wikimedia.org/')?`<img src="${esc(p.photo_url)}" alt="${esc(p.name)}" loading="lazy" style="width:100%;border-radius:10px;margin:8px 0 2px"><small><a target="_blank" rel="noopener" href="${esc(p.photo_credit)}">Foto: Wikimedia Commons</a></small>`:''}
-  <p style="font-size:14px;line-height:1.5">${esc(p.description)}</p>
-  <div class="facts"><div><b>Nejlepší čas</b>${esc(p.best_time||'neuvedeno')}</div><div><b>Dostupnost</b>${esc(p.access_info||'neuvedeno')}</div><div><b>Cena</b>${esc(p.price_info||'neuvedeno')}</div><div><b>Souřadnice</b>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div></div>
+  <p style="font-size:14px;line-height:1.5">${esc(p.description)}</p>${(p.description||'').length<30?(pendSug.has('description')?'<p class="n" style="margin:-8px 0 8px">Návrh popisu čeká na schválení.</p>':'<p style="margin:-8px 0 8px"><a href="#" data-sug="description" style="font-size:13px">Doplnit popis</a></p>'):''}
+  <div class="facts">${fact('Nejlepší čas','best_time',p.best_time)}${fact('Dostupnost','access_info',p.access_info)}${fact('Cena','price_info',p.price_info)}<div><b>Souřadnice</b>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div></div>
   <div class="row"><button class="btn main" id="favBtn">${fav?'★ V oblíbených':'☆ Do oblíbených'}</button><button class="btn${visited.has(p.id)?' main':''}" id="visBtn">${visited.has(p.id)?'✓ Byl jsem tady':'Byl jsem tady'}</button>
   <a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${p.lat},${p.lng}">Navigovat</a>
   <button class="btn" id="backBtn">Zpět</button><button class="btn" data-rep="place" data-id="${p.id}">⚑ Nahlásit</button>${isAdmin?`<button class="btn" data-hide="${p.id}" style="color:#b3261e;border-color:#b3261e">Skrýt místo</button>`:''}</div>
@@ -365,13 +367,17 @@ $('admBtn').onclick=()=>{$('admDlg').showModal();loadAdmin()};
 $('admX').onclick=()=>$('admDlg').close();
 async function loadAdmin(){
   const body=$('admBody');body.textContent='Načítám…';
-  const [pl,rp,pf]=await Promise.all([
+  const [pl,rp,pf,ed]=await Promise.all([
     db.from('places').select('*').eq('status','pending').order('created_at'),
     db.from('reports').select('*').eq('status','open').order('created_at'),
-    db.from('photos').select('id,path,place_id').eq('status','pending').order('created_at')]);
-  const pend=pl.data||[];admReps=rp.data||[];const pendPh=pf.data||[];
+    db.from('photos').select('id,path,place_id').eq('status','pending').order('created_at'),
+    db.from('place_edits').select('*').eq('status','pending').order('created_at')]);
+  const pend=pl.data||[];admReps=rp.data||[];const pendPh=pf.data||[];const pendEd=ed.data||[];
+  const edPl=pendEd.length?((await db.from('places').select('id,name,price_info,access_info,best_time,description').in('id',[...new Set(pendEd.map(x=>x.place_id))])).data||[]):[];
   let h=`<h4>Místa ke schválení (${pend.length})</h4>`;
   pend.forEach(p=>{h+=`<div class="rev"><b>${esc(p.name)}</b> <small>${CATS[p.category][0]} · ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</small><br>${esc(p.description)}<br><small>${esc(p.best_time||'')} ${esc(p.access_info||'')} ${esc(p.price_info||'')}</small><div class="row" style="margin-top:6px"><button class="btn main" data-ap="approved" data-id="${p.id}">Schválit</button><button class="btn" data-ap="rejected" data-id="${p.id}">Zamítnout</button></div></div>`});
+  h+=`<h4>Doplnění údajů ke schválení (${pendEd.length})</h4>`;
+  pendEd.forEach(x=>{const pp=edPl.find(y=>y.id===x.place_id)||{};h+=`<div class="rev"><b>${esc(pp.name||'?')}</b> <small>${FL[x.field]||esc(x.field)}</small><br><small>Teď: ${esc(pp[x.field]||'prázdné')}</small><br>Návrh: <b>${esc(x.value)}</b><div class="row" style="margin-top:6px"><button class="btn main" data-ed="1" data-id="${x.id}">Schválit</button><button class="btn" data-ed="0" data-id="${x.id}">Zamítnout</button></div></div>`});
   h+=`<h4>Fotky ke schválení (${pendPh.length})</h4>`;
   pendPh.forEach(f=>{const pp=places.find(x=>x.id===f.place_id);h+=`<div class="rev"><small>${esc(pp?pp.name:'')}</small><br><img src="${esc(photoUrl(f.path))}" alt="" style="max-width:220px;border-radius:8px"><div class="row" style="margin-top:6px"><button class="btn main" data-pa="approved" data-id="${f.id}">Schválit</button><button class="btn" data-pa="del" data-id="${f.id}">Smazat</button></div></div>`});
   h+=`<h4>Nahlášení (${admReps.length})</h4>`;
@@ -389,6 +395,11 @@ async function loadAdmin(){
 }
 $('admBody').addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.ed!==undefined){
+    const {error}=await db.rpc('approve_place_edit',{edit_id:b.dataset.id,approve:b.dataset.ed==='1'});
+    if(error){alert('Nepovedlo se: '+error.message);return}
+    await loadAll();loadAdmin();return;
+  }
   if(b.dataset.ap){
     await db.from('places').update({status:b.dataset.ap}).eq('id',b.dataset.id);
     await loadAll();loadAdmin();return;
@@ -469,13 +480,12 @@ $('delAcc').onclick=async e=>{
     alert('Účet byl smazán.');
   }catch(err){alert('Smazání se nepovedlo: '+(err.message||err))}
 };
-let visited=new Set(),visitAt={};
-const REG=[['Krkonoše',50.60,50.85,15.30,16.10],['Šumava',48.70,49.35,13.00,14.20],['Jeseníky',49.95,50.30,16.95,17.50],['Beskydy',49.30,49.70,18.10,18.70],['České Švýcarsko',50.78,51.00,14.10,14.55],['Praha',49.94,50.18,14.22,14.71],['Český ráj',50.45,50.62,14.90,15.35],['Moravský kras',49.28,49.45,16.62,16.88],['Pálava',48.78,48.95,16.55,16.80],['Třeboňsko',48.85,49.20,14.45,15.05]];
-const SMALL=new Set(['České Švýcarsko','Český ráj','Moravský kras','Pálava']);
+let visited=new Set(),visitAt={},myContrib=0,pendSug=new Set();
+const REG=[['Krkonoše',50.60,50.85,15.30,16.10],['Šumava',48.70,49.35,13.00,14.20],['Jeseníky',49.95,50.30,16.95,17.50],['Beskydy',49.30,49.70,18.10,18.70],['České Švýcarsko',50.78,51.00,14.10,14.55],['Praha',49.94,50.18,14.22,14.71],['Český ráj',50.45,50.62,14.90,15.35],['Moravský kras',49.28,49.45,16.62,16.88],['Pálava',48.78,48.95,16.55,16.80],['Třeboňsko',48.85,49.20,14.45,15.05],['Orlické hory',50.20,50.45,16.20,16.60],['Krušné hory',50.30,50.60,12.40,13.60],['Vysočina',49.30,49.80,15.80,16.30],['Brdy',49.55,49.80,13.70,14.10],['Novohradské hory',48.60,48.85,14.50,15.10],['Bílé Karpaty',48.75,49.10,17.40,18.00],['Lužické hory a Ještěd',50.70,50.90,14.40,15.00]];
 const KIND=[['vodopad',/vodop/i],['jeskyne',/jeskyn/i],['vrchol',/vrchol/i]];
 const regOf=p=>{const r=REG.find(([,a,b,c,d])=>p.lat>=a&&p.lat<=b&&p.lng>=c&&p.lng<=d);return r?r[0]:null};
 function stats(){
-  const S={total:0,cat:{},reg:{},kind:{}};
+  const S={total:0,cat:{},reg:{},kind:{},contrib:myContrib};
   places.filter(p=>visited.has(p.id)).forEach(p=>{
     S.total++;S.cat[p.category]=(S.cat[p.category]||0)+1;
     const r=regOf(p);if(r)S.reg[r]=(S.reg[r]||0)+1;
@@ -483,26 +493,37 @@ function stats(){
   });
   return S;
 }
-const BADGES=[
-{id:'p1',icon:'👣',name:'První krok',get:S=>[S.total,1]},
-{id:'p10',icon:'🥾',name:'Turista',get:S=>[S.total,10]},
-{id:'p25',icon:'🧭',name:'Cestovatel',get:S=>[S.total,25]},
-{id:'p50',icon:'🏔️',name:'Průzkumník',get:S=>[S.total,50]},
-{id:'p100',icon:'👑',name:'Legenda',get:S=>[S.total,100]},
-{id:'rozh',icon:'🗼',name:'Lovec rozhleden',get:S=>[S.cat.rozhledna||0,10]},
-{id:'vyhl',icon:'🌄',name:'Znalec výhledů',get:S=>[S.cat.vyhled||0,15]},
-{id:'prir',icon:'🌲',name:'Přítel přírody',get:S=>[S.cat.priroda||0,15]},
-{id:'pam',icon:'🏰',name:'Hradní pán',get:S=>[S.cat.pamatka||0,8]},
-{id:'vodo',icon:'💧',name:'Lovec vodopádů',get:S=>[S.kind.vodopad||0,5]},
-{id:'jesk',icon:'🦇',name:'Jeskyňář',get:S=>[S.kind.jeskyne||0,5]},
-{id:'vrch',icon:'⛰️',name:'Sběratel vrcholů',get:S=>[S.kind.vrchol||0,10]},
-{id:'all',icon:'🌈',name:'Všestranný',get:S=>[['vyhled','rozhledna','priroda','pamatka'].filter(k=>S.cat[k]).length,4]},
-...REG.map(r=>({id:'r_'+r[0],icon:'📍',name:'Oblast: '+r[0],get:S=>[S.reg[r[0]]||0,SMALL.has(r[0])?3:5]}))
+const RN=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+const SER=[
+['Celkem','tot','👣','Cestovatel',S=>S.total,[1,5,10,25,50,100,200,350,500,1000]],
+['Typy','rozh','🗼','Lovec rozhleden',S=>S.cat.rozhledna||0,[5,15,40,100,250]],
+['Typy','vyhl','🌄','Znalec výhledů',S=>S.cat.vyhled||0,[10,30,80,200,500]],
+['Typy','prir','🌲','Přítel přírody',S=>S.cat.priroda||0,[10,30,80,200,500]],
+['Typy','pam','🏰','Hradní pán',S=>S.cat.pamatka||0,[5,15,40,100,250]],
+['Typy','all','🌈','Všestranný',S=>['vyhled','rozhledna','priroda','pamatka'].filter(k=>S.cat[k]).length,[2,3,4]],
+['Druhy','vodo','💧','Lovec vodopádů',S=>S.kind.vodopad||0,[3,10,25,60,120]],
+['Druhy','jesk','🦇','Jeskyňář',S=>S.kind.jeskyne||0,[3,10,30,80,200]],
+['Druhy','vrch','⛰️','Sběratel vrcholů',S=>S.kind.vrchol||0,[10,30,80,200,400]],
+['Příspěvky','contrib','✍️','Přispěvatel',S=>S.contrib,[1,5,15,40,100]],
+...REG.map(r=>['Oblasti','r_'+r[0],'📍',r[0],S=>S.reg[r[0]]||0,[3,10,25,60]])
 ];
-const earned=()=>{const S=stats();return BADGES.filter(b=>{const [h,n]=b.get(S);return h>=n}).map(b=>b.id)};
+const tierOf=(sr,S)=>{const h=sr[4](S);return sr[5].filter(t=>h>=t).length};
+const earned=()=>{const S=stats();return SER.flatMap(sr=>Array.from({length:tierOf(sr,S)},(_,i)=>sr[1]+':'+(i+1)))};
+const bname=id=>{const [sid,t]=id.split(':'),sr=SER.find(x=>x[1]===sid);return sr[3]+' '+RN[t-1]};
+async function loadContrib(){
+  myContrib=0;
+  if(!user)return;
+  const q=(t,col,extra)=>db.from(t).select('id',{count:'exact',head:true}).eq(col,user.id).eq('status','approved');
+  const [a,b,c]=await Promise.all([q('place_edits','user_id'),q('photos','user_id'),q('places','created_by')]);
+  myContrib=(a.count||0)+(b.count||0)+(c.count||0);
+}
 async function loadVisits(){
   visited=new Set();visitAt={};
-  if(user){const {data}=await db.from('visits').select('place_id,created_at');(data||[]).forEach(v=>{visited.add(v.place_id);visitAt[v.place_id]=v.created_at})}
+  if(user){
+    const {data}=await db.from('visits').select('place_id,created_at');
+    (data||[]).forEach(v=>{visited.add(v.place_id);visitAt[v.place_id]=v.created_at});
+  }
+  await loadContrib();
   refresh();
 }
 async function toggleVisit(){
@@ -517,29 +538,49 @@ async function toggleVisit(){
     if(error){note('Nepovedlo se: '+error.message);return}
     visited.add(id);visitAt[id]=new Date().toISOString();
   }
-  const nw=earned().filter(b=>!before.includes(b));
+  const nw=earned().filter(x=>!before.includes(x));
   refresh();
-  if(nw.length)note('🏅 Nový odznak: '+BADGES.find(b=>b.id===nw[0]).name);
+  if(nw.length)note('🏅 Nový odznak: '+bname(nw[nw.length-1]));
 }
 document.addEventListener('click',e=>{if(e.target.id==='visBtn')toggleVisit()});
 $('pasBtn').onclick=()=>{if(!user){openAuth();return}$('pasDlg').showModal();drawPas()};
 $('pasX').onclick=()=>$('pasDlg').close();
 function drawPas(){
-  const S=stats(),got=BADGES.filter(b=>{const [h,n]=b.get(S);return h>=n}).length;
+  const S=stats(),E=earned();
   const cats=Object.entries(CATS).map(([k,v])=>{
     const all=places.filter(p=>p.category===k).length,have=S.cat[k]||0;
     return all?`<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${v[0]}</span><span>${have} / ${all}</span></div><div style="height:8px;background:#e8e6df;border-radius:4px"><div style="height:8px;width:${Math.max(have?3:0,Math.min(100,have/all*100))}%;background:${v[1]};border-radius:4px"></div></div></div>`:'';
   }).join('');
-  const bad=BADGES.map(b=>{const [h,n]=b.get(S),ok=h>=n;
-    return `<div style="border:1px solid ${ok?'#ffc400':'#e2ded3'};border-radius:12px;padding:8px;text-align:center;${ok?'background:#fff8e1':'opacity:.6'}"><div style="font-size:26px;${ok?'':'filter:grayscale(1)'}">${b.icon}</div><b style="font-size:13px">${esc(b.name)}</b><div style="font-size:12px;color:#63706a">${ok?'Splněno':Math.min(h,n)+' / '+n}</div></div>`}).join('');
+  const card=sr=>{
+    const n=tierOf(sr,S),have=sr[4](S),max=sr[5].length,nxt=sr[5][n];
+    return `<div style="border:1px solid ${n?'#ffc400':'#e2ded3'};border-radius:12px;padding:8px;text-align:center;${n?'background:#fff8e1':'opacity:.6'}"><div style="font-size:26px;${n?'':'filter:grayscale(1)'}">${sr[2]}</div><b style="font-size:13px">${esc(sr[3])}${n?' '+RN[n-1]:''}</b><div style="font-size:12px;letter-spacing:1px;color:#d4a017">${'★'.repeat(n)}${'☆'.repeat(max-n)}</div><div style="font-size:12px;color:#63706a">${nxt?have+' / '+nxt:'Maximum'}</div></div>`;
+  };
+  const sec=g=>`<h4>${g}</h4><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px">${SER.filter(sr=>sr[0]===g).map(card).join('')}</div>`;
   const rec=Object.keys(visitAt).map(id=>places.find(p=>p.id===id)).filter(Boolean).sort((a,b)=>visitAt[b.id].localeCompare(visitAt[a.id])).slice(0,8);
-  $('pasBody').innerHTML=`<p style="font-size:18px;margin:0"><b>${S.total}</b> navštívených míst z ${places.length} · <b>${got}</b> odznaků</p>
+  $('pasBody').innerHTML=`<p style="font-size:18px;margin:0"><b>${S.total}</b> navštívených míst z ${places.length} · <b>${E.length}</b> získaných odznaků</p>
   <h4>Podle typu</h4>${cats}
-  <h4>Odznaky</h4><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px">${bad}</div>
-  <p class="n" style="font-size:12px">Oblasti se určují přibližně podle polohy místa.</p>
+  ${['Celkem','Typy','Druhy','Příspěvky','Oblasti'].map(sec).join('')}
+  <p class="n" style="font-size:12px">Příspěvky: schválené fotky, nová místa a doplněné údaje. Oblasti se určují přibližně podle polohy místa.</p>
   <h4>Poslední návštěvy</h4>${rec.length?rec.map(p=>`<div class="item" data-fly="${p.id}"><span><b>${esc(p.name)}</b><br><small>${CATS[p.category][0]}</small></span><small>${new Date(visitAt[p.id]).toLocaleDateString('cs-CZ')}</small></div>`).join(''):'<p class="n">Zatím nic. U místa klepni na „Byl jsem tady“.</p>'}`;
 }
 $('pasBody').addEventListener('click',e=>{const f=e.target.closest('[data-fly]');if(f){$('pasDlg').close();select(f.dataset.fly,true)}});
+
+const FL={price_info:'Cena',access_info:'Dostupnost',best_time:'Nejlepší čas',description:'Popis'};
+const HINT={price_info:'Např. „Zdarma“ nebo „Vstupné 60 Kč“.',access_info:'Např. „20 min pěšky od parkoviště, vhodné i s kočárkem“.',best_time:'Např. „západ slunce“, „ráno“ nebo „na podzim“.',description:'Krátce popiš, co tam je a čím je místo zajímavé.'};
+const fact=(label,field,val)=>`<div><b>${label}</b>${val?esc(val):'neuvedeno'+(pendSug.has(field)?'<br><small>návrh čeká na schválení</small>':`<br><a href="#" data-sug="${field}">Doplnit</a>`)}</div>`;
+document.addEventListener('click',async e=>{
+  const a=e.target.closest('[data-sug]');if(!a)return;
+  e.preventDefault();
+  if(!user){openAuth();return}
+  const field=a.dataset.sug;
+  const v=await ask('Doplnit: '+FL[field],HINT[field]+' Návrh uvidí správce a po schválení se zobrazí všem.',true);
+  if(!v)return;
+  if(v.length<2){note('Návrh je příliš krátký.');return}
+  const {error}=await db.from('place_edits').insert({place_id:sel.id,user_id:user.id,field,value:v});
+  if(error){note(error.code==='23505'?'Tenhle návrh už čeká na schválení.':'Nepovedlo se: '+error.message);return}
+  note('Díky! Návrh čeká na schválení.');
+  select(sel.id);
+});
 const SH=['38%','85%','12%'];let shi=0;
 $('grab').onclick=()=>{shi=(shi+1)%3;$('sheet').style.setProperty('--sh',SH[shi])};
 let picking=false,pickLL=null;
