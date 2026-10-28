@@ -14,69 +14,117 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d2a24;--ac:#1f7a5a;--acink:#fff;--danger:#b3261e;--shd:#0002;
+--mut:color-mix(in srgb,var(--ink) 62%,var(--bg));--line:color-mix(in srgb,var(--ink) 13%,var(--bg));--line2:color-mix(in srgb,var(--ink) 24%,var(--bg));--track:color-mix(in srgb,var(--ink) 12%,var(--bg));--tint:color-mix(in srgb,var(--ink) 6%,var(--card));--soft:color-mix(in srgb,var(--ac) 14%,var(--card));--gold:color-mix(in srgb,#ffc400 20%,var(--card));color-scheme:light}
+:root[data-dark]{--danger:#ff8a80;--shd:#0008;color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1d2a24;display:flex;flex-direction:column}
-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#fff;border-bottom:1px solid #e2ded3}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+a{color:var(--ac)}
+header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line)}
 h1{font-size:18px;margin:0;margin-right:auto}
+h4{margin:14px 0 6px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;width:100%}
-.chip,.btn{border:1px solid #1f7a5a;background:#fff;color:#1f7a5a;padding:6px 12px;border-radius:99px;font-size:13px;cursor:pointer}
-.chip.on,.btn.main{background:#1f7a5a;color:#fff}
-.btn{border-radius:8px;padding:8px 12px}
+.chip,.btn{border:0;background:var(--soft);color:var(--ac);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 1px 2px var(--shd);transition:transform .08s}
+.chip:active,.btn:active{transform:scale(.95)}
+.chip.on,.btn.main{background:var(--ac);color:var(--acink)}
+:root[data-shape="classic"] .chip,:root[data-shape="classic"] .btn{border:1px solid var(--ac);border-radius:8px;box-shadow:none;background:var(--card);font-weight:500}
+:root[data-shape="classic"] .chip.on,:root[data-shape="classic"] .btn.main{background:var(--ac)}
 .wrap{flex:1;display:flex;min-height:0}
 #map{flex:1}
-#panel{width:360px;overflow-y:auto;padding:14px;background:#fff;border-left:1px solid #e2ded3}
-@media(max-width:800px){.wrap{flex-direction:column}#panel{width:100%;height:42%;border-left:0;border-top:1px solid #e2ded3}}
-.pin{width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px #0006;cursor:pointer}
-.item{padding:10px 2px;border-top:1px solid #eee;cursor:pointer;font-size:14px;display:flex;justify-content:space-between;gap:8px}
-.item small{color:#63706a}
-.tag{color:#fff;font-size:12px;padding:2px 8px;border-radius:99px}
-.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
-.facts div{background:#f6f4ef;border-radius:8px;padding:8px;font-size:13px}
-.facts b{display:block;font-size:11px;color:#63706a;text-transform:uppercase}
-.rev{border-top:1px solid #eee;padding:8px 0;font-size:14px}
-input,select,textarea{width:100%;padding:9px;border:1px solid #cfcabd;border-radius:8px;font:inherit;margin:4px 0}
-dialog{border:0;border-radius:14px;padding:18px;width:min(360px,92vw)}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-.msg{font-size:13px;color:#b3261e}
-.cn{color:#fff;font-size:12px;font-weight:700;pointer-events:none;text-shadow:0 0 2px #0008}
-input,select,textarea{font-size:16px}
-@supports(height:100dvh){html,body{height:100dvh}}
-#sheet{width:360px;display:flex;flex-direction:column;min-height:0;background:#fff;border-left:1px solid #e2ded3}
+#sheet{width:360px;display:flex;flex-direction:column;min-height:0;background:var(--card);border-left:1px solid var(--line)}
 #grab{display:none}
-#panel{flex:1;width:auto;border-left:0;border-top:0;height:auto;min-height:0}
+#panel{flex:1;overflow-y:auto;padding:14px;min-height:0}
+.item{padding:10px 2px;border-top:1px solid var(--line);cursor:pointer;font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.item small{color:var(--mut)}
+.tag{color:#fff;font-size:12px;padding:3px 10px;border-radius:99px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.facts div{background:var(--tint);border-radius:14px;padding:9px 11px;font-size:13px}
+.facts b{display:block;font-size:11px;color:var(--mut);text-transform:uppercase}
+.rev{border-top:1px solid var(--line);padding:8px 0;font-size:14px}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--line2);border-radius:12px;font:inherit;font-size:16px;margin:4px 0;background:var(--card);color:var(--ink)}
+#q{border-radius:999px;padding:9px 16px}
+dialog{border:0;border-radius:22px;padding:18px;width:min(360px,92vw);background:var(--card);color:var(--ink);box-shadow:0 10px 40px var(--shd)}
+dialog::backdrop{background:#0007}
+.dlgwide{width:min(640px,96vw);max-height:90vh;padding:0;overflow:hidden}
+.dlgwide[open]{display:flex;flex-direction:column}
+.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.db{overflow:auto;padding:12px 16px 18px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.msg{font-size:13px;color:var(--danger)}
+.cn{color:var(--acink);font-size:12px;font-weight:700;pointer-events:none}
+.bd{position:relative;border:1px solid var(--line);border-radius:16px;padding:10px 8px;text-align:center;opacity:.65}
+.bd.on{opacity:1;background:var(--gold);border-color:#ffc400}
+.bi{font-size:26px}.bd:not(.on) .bi{filter:grayscale(1)}
+.bd b{display:block;font-size:13px;margin-top:2px}
+.bp{height:6px;background:var(--track);border-radius:3px;margin:6px 6px 3px}.bp div{height:6px;background:var(--ac);border-radius:3px}
+.bt{font-size:12px}.bs{font-size:11px;color:var(--mut)}
+.ib{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:0;background:var(--soft);color:var(--ac);font:italic 700 13px/22px Georgia,serif;cursor:pointer;padding:0}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.sw2{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.swb{display:flex;align-items:center;gap:8px;border:2px solid var(--line);background:var(--card);color:var(--ink);padding:6px 12px 6px 6px;border-radius:999px;cursor:pointer;font-size:13px}
+.swb.sel{border-color:var(--ac)}
+.swb span{width:28px;height:28px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center}
+.swb i{width:12px;height:12px;border-radius:50%}
+.maplibregl-ctrl-group{background:var(--card)!important;border-radius:22px!important;overflow:hidden;box-shadow:0 2px 8px var(--shd)!important}
+.maplibregl-ctrl-group button{color:var(--ink)}
+.maplibregl-ctrl-group button+button{border-top:1px solid var(--line)!important}
+:root[data-dark] .maplibregl-ctrl-icon,:root[data-dark] .maplibregl-ctrl-attrib-button{filter:invert(1)}
+.maplibregl-ctrl-attrib{background:color-mix(in srgb,var(--card) 82%,transparent)!important;color:var(--mut)!important;border-radius:14px!important}
+.maplibregl-ctrl-attrib a{color:var(--mut)!important}
+@supports(height:100dvh){html,body{height:100dvh}}
 @media(max-width:800px){
   header{padding:8px 10px;gap:6px}
   h1{font-size:17px}
   #who{display:none}
   #q{width:100%!important;order:5}
   .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-  .chip{white-space:nowrap;font-size:15px;padding:9px 14px;flex:none}
-  .btn{font-size:15px;padding:10px 14px}
+  .chip{white-space:nowrap;font-size:15px;padding:9px 16px;flex:none}
+  .btn{font-size:15px;padding:10px 16px}
   .wrap{position:relative;flex-direction:row}
   #map{position:absolute;inset:0}
-  #sheet{position:absolute;left:0;right:0;bottom:0;width:100%;height:var(--sh,38%);border-left:0;border-top:1px solid #e2ded3;border-radius:16px 16px 0 0;box-shadow:0 -2px 12px #0003;z-index:3;transition:height .2s}
+  #sheet{position:absolute;left:0;right:0;bottom:0;width:100%;height:var(--sh,38%);border-left:0;border-top:1px solid var(--line);border-radius:22px 22px 0 0;box-shadow:0 -2px 14px var(--shd);z-index:3;transition:height .2s}
   #grab{display:block;height:28px;flex:none;cursor:pointer;position:relative}
-  #grab::after{content:"";position:absolute;top:11px;left:50%;width:44px;height:5px;margin-left:-22px;background:#cfcabd;border-radius:3px}
+  #grab::after{content:"";position:absolute;top:11px;left:50%;width:44px;height:5px;margin-left:-22px;background:var(--line2);border-radius:3px}
   #panel{font-size:16px;padding:4px 14px 20px}
   .item{padding:14px 2px;font-size:16px}
   .facts div{font-size:15px}
   .maplibregl-ctrl-group button{width:44px;height:44px}
 }
 </style>
+<script>
+var TH={les:['Les',['#f6f4ef','#1f7a5a'],['#0f1714','#4cc79b']],ocean:['Oceán',['#eef4fa','#2563eb'],['#0e1621','#6ea8ff']],sunset:['Západ slunce',['#fbf1e6','#ea580c'],['#1a120d','#fb923c']],lavender:['Levandule',['#f3eefb','#7c3aed'],['#15111f','#a78bfa']],pink:['Růžová',['#fbeef3','#db2777'],['#1c1117','#f472b6']],teal:['Tyrkys',['#eaf6f5','#0d9488'],['#0c1717','#2dd4bf']],graphite:['Grafit',['#eceff1','#475569'],['#0d0f12','#94a3b8']]};
+var PREF={mode:'auto',color:'les',shape:'bubble'};
+try{var _p=JSON.parse(localStorage.getItem('vzhled')||'null');if(_p)for(var k in _p)PREF[k]=_p[k]}catch(e){}
+function isDark(){return PREF.mode==='dark'||(PREF.mode==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches)}
+function applyTheme(){
+  var d=isDark(),t=TH[PREF.color]||TH.les,c=t[d?2:1],r=document.documentElement,st=r.style;
+  st.setProperty('--bg',c[0]);st.setProperty('--ac',c[1]);
+  st.setProperty('--ink',d?'#e9efed':'#1d2a24');
+  st.setProperty('--card',d?'color-mix(in srgb,'+c[0]+' 88%,#fff)':'#fff');
+  st.setProperty('--acink',d?'#07110d':'#fff');
+  if(d)r.setAttribute('data-dark','');else r.removeAttribute('data-dark');
+  r.setAttribute('data-shape',PREF.shape);
+  var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',c[0]);
+  if(window.__onTheme)window.__onTheme();
+}
+applyTheme();
+try{matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){if(PREF.mode==='auto')applyTheme()})}catch(e){}
+</script>
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:#63706a;font-weight:400">v21</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:var(--mut);font-weight:400">v22</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
+<button class="btn" id="setBtn" title="Vzhled" aria-label="Vzhled">🎨</button>
 <button class="btn" id="pasBtn">🏅 Pas</button>
 <button class="btn" id="admBtn" hidden>Správa</button>
 <button class="btn" id="addBtn">+ Přidat místo</button>
 <button class="btn main" id="authBtn">Přihlásit</button>
 <div class="chips" id="chips"></div>
 </header>
-<div class="wrap"><div id="map"></div><div id="sheet"><div id="grab" role="button" aria-label="Zvětšit nebo zmenšit seznam"></div><div id="panel"></div><div id="legal" style="flex:none;font-size:12px;padding:6px 14px;border-top:1px solid #eee;color:#63706a"><a href="podminky.html" target="_blank">Podmínky</a> · <a href="soukromi.html" target="_blank">Soukromí</a> · <a href="#" id="delAcc" hidden>Smazat účet</a> · Data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div>
+<div class="wrap"><div id="map"></div><div id="sheet"><div id="grab" role="button" aria-label="Zvětšit nebo zmenšit seznam"></div><div id="panel"></div><div id="legal" style="flex:none;font-size:12px;padding:6px 14px;border-top:1px solid var(--line);color:var(--mut)"><a href="podminky.html" target="_blank">Podmínky</a> · <a href="soukromi.html" target="_blank">Soukromí</a> · <a href="#" id="delAcc" hidden>Smazat účet</a> · Data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div>
 
 <dialog id="dlg">
 <h3 style="margin-top:0">Přihlášení</h3>
@@ -94,13 +142,13 @@ input,select,textarea{font-size:16px}
 <div class="row"><button class="btn main" id="pSave">Uložit heslo</button></div>
 </dialog>
 
-<div id="toast" hidden style="position:fixed;top:90px;left:50%;transform:translateX(-50%);background:#1d2a24;color:#fff;padding:10px 14px;border-radius:10px;z-index:30;font-size:15px"></div>
-<div id="locAsk" hidden style="position:fixed;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:20;background:#fff;border-radius:14px;padding:14px;box-shadow:0 4px 18px #0006;font-size:15px;max-width:420px;margin:auto">
+<div id="toast" hidden style="position:fixed;top:90px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;z-index:30;font-size:15px"></div>
+<div id="locAsk" hidden style="position:fixed;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:20;background:var(--card);color:var(--ink);border-radius:22px;padding:14px;box-shadow:0 4px 18px #0006;font-size:15px;max-width:420px;margin:auto">
 <b>Zobrazit místa v okolí?</b>
-<p style="margin:6px 0 10px;color:#63706a;font-size:14px">Polohu použijeme jen k vycentrování mapy na tebe. Nikam ji neukládáme.</p>
+<p style="margin:6px 0 10px;color:var(--mut);font-size:14px">Polohu použijeme jen k vycentrování mapy na tebe. Nikam ji neukládáme.</p>
 <div class="row"><button class="btn main" id="locYes">Povolit polohu</button><button class="btn" id="locNo">Teď ne</button></div>
 </div>
-<div id="addHint" hidden style="position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#1f7a5a;color:#fff;padding:10px 14px;border-radius:10px;z-index:5;font-size:14px;box-shadow:0 2px 8px #0005">Klikni do mapy na místo, které chceš přidat <button class="btn" id="aCancel" style="margin-left:8px;padding:4px 10px">Zrušit</button></div>
+<div id="addHint" hidden style="position:fixed;top:80px;left:50%;transform:translateX(-50%);background:var(--ac);color:var(--acink);padding:10px 14px;border-radius:10px;z-index:5;font-size:14px;box-shadow:0 2px 8px #0005">Klikni do mapy na místo, které chceš přidat <button class="btn" id="aCancel" style="margin-left:8px;padding:4px 10px">Zrušit</button></div>
 <dialog id="addDlg">
 <h3 style="margin-top:0">Přidat místo</h3>
 <input id="an" maxlength="120" placeholder="Název místa">
@@ -112,20 +160,22 @@ input,select,textarea{font-size:16px}
 <p class="msg" id="amsg2"></p>
 <div class="row"><button class="btn main" id="aSave">Odeslat ke schválení</button><button class="btn" id="aX">Zavřít</button></div>
 </dialog>
-<dialog id="admDlg" style="width:min(640px,96vw);max-height:90vh">
-<div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Správa</h3><button class="btn" id="admX">Zavřít</button></div>
-<div id="admBody" style="margin-top:10px"></div>
+<dialog id="admDlg" class="dlgwide">
+<div class="dh"><h3 style="margin:0">Správa</h3><button class="btn" id="admX">Zavřít</button></div>
+<div id="admBody" class="db"></div>
 </dialog>
 <dialog id="askDlg">
 <h3 id="askT" style="margin-top:0"></h3>
-<p id="askP" style="font-size:14px;color:#63706a"></p>
+<p id="askP" style="font-size:14px;color:var(--mut)"></p>
 <textarea id="askI" rows="3" maxlength="500" hidden></textarea>
 <div class="row"><button class="btn main" id="askOk">Potvrdit</button><button class="btn" id="askNo">Zrušit</button></div>
 </dialog>
-<dialog id="pasDlg" style="width:min(640px,96vw);max-height:90vh">
-<div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Cestovní pas</h3><button class="btn" id="pasX">Zavřít</button></div>
-<div id="pasBody" style="margin-top:10px"></div>
+<dialog id="pasDlg" class="dlgwide">
+<div class="dh"><h3 style="margin:0">Cestovní pas</h3><button class="btn" id="pasX">Zavřít</button></div>
+<div id="pasBody" class="db"></div>
 </dialog>
+<dialog id="infoDlg"><h3 id="infoT" style="margin-top:0"></h3><div id="infoP" style="font-size:14px;line-height:1.5"></div><div class="row" style="margin-top:12px"><button class="btn main" id="infoX">Rozumím</button></div></dialog>
+<dialog id="setDlg" style="width:min(440px,96vw)"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Vzhled</h3><button class="btn main" id="setX">Hotovo</button></div><div id="setBody"></div></dialog>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.75.0/dist/umd/supabase.js"></script>
 <script>
@@ -172,7 +222,7 @@ class LocCtl{
     this.c=document.createElement('div');this.c.className='maplibregl-ctrl maplibregl-ctrl-group';
     const b=document.createElement('button');b.type='button';b.title='Moje poloha';b.setAttribute('aria-label','Moje poloha');
     b.style.cssText='display:flex;align-items:center;justify-content:center';
-    b.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
+    b.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
     b.onclick=locate;this.c.appendChild(b);return this.c;
   }
   onRemove(){this.c.remove()}
@@ -186,7 +236,7 @@ map.on('load',()=>{
   map.on('click','cl',async e=>{const f=e.features[0];const z=await map.getSource('pl').getClusterExpansionZoom(f.properties.cluster_id);map.easeTo({center:f.geometry.coordinates,zoom:z})});
   map.on('click','pt',e=>select(e.features[0].properties.id,true));
   ['cl','pt'].forEach(l=>{map.on('mouseenter',l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',l,()=>map.getCanvas().style.cursor='')});
-  mapReady=true;drawMarkers();
+  mapReady=true;drawMarkers();themeMap();
 });
 map.on('moveend',()=>{if(!sel)drawList()});
 let clMarkers={};
@@ -225,7 +275,7 @@ function drawList(){
   const bd=map.getBounds();
   const all=query?visible():visible().filter(p=>bd.contains([p.lng,p.lat]));
   const v=all.sort((a,b)=>userPos?km(a)-km(b):(ratings[b.id]?.avg_rating||0)-(ratings[a.id]?.avg_rating||0)).slice(0,50);
-  $('panel').innerHTML=`<p style="color:#63706a;font-size:13px;margin-top:0">${all.length} míst ${query?'odpovídá hledání':'v zobrazené oblasti'}${all.length>50?(userPos?' (zobrazeno 50 nejbližších)':' (zobrazeno prvních 50)'):''}</p>`+
+  $('panel').innerHTML=`<p style="color:var(--mut);font-size:13px;margin-top:0">${all.length} míst ${query?'odpovídá hledání':'v zobrazené oblasti'}${all.length>50?(userPos?' (zobrazeno 50 nejbližších)':' (zobrazeno prvních 50)'):''}</p>`+
     v.map(p=>`<div class="item" data-id="${p.id}"><span><b>${esc(p.name)}</b><br><small>${CATS[p.category][0]}${dist(p)}</small></span><small>${stars(p.id)}</small></div>`).join('');
 }
 async function select(id,fly){
@@ -246,16 +296,16 @@ async function select(id,fly){
   <div class="facts">${fact('Nejlepší čas','best_time',p.best_time)}${fact('Dostupnost','access_info',p.access_info)}${fact('Cena','price_info',p.price_info)}<div><b>Souřadnice</b>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div></div>
   <div class="row"><button class="btn main" id="favBtn">${fav?'★ V oblíbených':'☆ Do oblíbených'}</button><button class="btn${visited.has(p.id)?' main':''}" id="visBtn">${visited.has(p.id)?'✓ Byl jsem tady':'Byl jsem tady'}</button>
   <a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${p.lat},${p.lng}">Navigovat</a>
-  <button class="btn" id="backBtn">Zpět</button><button class="btn" data-rep="place" data-id="${p.id}">⚑ Nahlásit</button>${isAdmin?`<button class="btn" data-hide="${p.id}" style="color:#b3261e;border-color:#b3261e">Skrýt místo</button>`:''}</div>
+  <button class="btn" id="backBtn">Zpět</button><button class="btn" data-rep="place" data-id="${p.id}">⚑ Nahlásit</button>${isAdmin?`<button class="btn" data-hide="${p.id}" style="color:var(--danger);border-color:var(--danger)">Skrýt místo</button>`:''}</div>
   <h3>Fotky od uživatelů</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${(phs||[]).map(f=>`<div style="position:relative"><img src="${esc(photoUrl(f.path))}" alt="" loading="lazy" style="width:100%;border-radius:8px;aspect-ratio:4/3;object-fit:cover"><button class="btn" title="Nahlásit fotku" data-rep="photo" data-id="${f.id}" style="position:absolute;right:4px;top:4px;padding:2px 8px;font-size:13px;background:#fffd">⚑</button>${(isAdmin||(user&&f.user_id===user.id))?`<button class="btn" title="Smazat fotku" data-delph="${f.id}" data-path="${esc(f.path)}" style="position:absolute;left:4px;top:4px;padding:2px 8px;font-size:13px;background:#fffd;color:#b3261e;border-color:#b3261e">🗑</button>`:''}${f.status==='pending'?'<span style="position:absolute;left:4px;bottom:4px;background:#000a;color:#fff;font-size:11px;padding:2px 6px;border-radius:6px">čeká na schválení</span>':''}</div>`).join('')}</div>
-  ${(phs||[]).length?'':'<p style="font-size:13px;color:#63706a">Zatím žádné fotky.</p>'}
-  ${user?`<input type="file" id="phFile" accept="image/jpeg,image/png,image/webp"><p class="msg" id="phMsg"></p>`:'<p style="font-size:13px;color:#63706a">Pro nahrání fotky se přihlas.</p>'}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${(phs||[]).map(f=>`<div style="position:relative"><img src="${esc(photoUrl(f.path))}" alt="" loading="lazy" style="width:100%;border-radius:8px;aspect-ratio:4/3;object-fit:cover"><button class="btn" title="Nahlásit fotku" data-rep="photo" data-id="${f.id}" style="position:absolute;right:4px;top:4px;padding:2px 8px;font-size:13px;background:var(--card)">⚑</button>${(isAdmin||(user&&f.user_id===user.id))?`<button class="btn" title="Smazat fotku" data-delph="${f.id}" data-path="${esc(f.path)}" style="position:absolute;left:4px;top:4px;padding:2px 8px;font-size:13px;background:var(--card);color:var(--danger);border-color:var(--danger)">🗑</button>`:''}${f.status==='pending'?'<span style="position:absolute;left:4px;bottom:4px;background:#000a;color:#fff;font-size:11px;padding:2px 6px;border-radius:6px">čeká na schválení</span>':''}</div>`).join('')}</div>
+  ${(phs||[]).length?'':'<p style="font-size:13px;color:var(--mut)">Zatím žádné fotky.</p>'}
+  ${user?`<input type="file" id="phFile" accept="image/jpeg,image/png,image/webp"><p class="msg" id="phMsg"></p>`:'<p style="font-size:13px;color:var(--mut)">Pro nahrání fotky se přihlas.</p>'}
   <h3>Recenze</h3>
   ${user?`<select id="rt"><option value="5">★★★★★</option><option value="4">★★★★</option><option value="3">★★★</option><option value="2">★★</option><option value="1">★</option></select>
   <textarea id="rb" rows="3" maxlength="2000" placeholder="Jaké to tam bylo?"></textarea>
-  <button class="btn main" id="rvBtn">Odeslat recenzi</button><p class="msg" id="rmsg"></p>`:'<p style="font-size:13px;color:#63706a">Pro psaní recenzí se přihlas.</p>'}
-  ${(revs||[]).map(r=>`<div class="rev">${'★'.repeat(r.rating)} <small>${new Date(r.created_at).toLocaleDateString('cs-CZ')}</small><br>${esc(r.body)}</div>`).join('')||'<p style="font-size:13px;color:#63706a">Zatím žádné recenze.</p>'}`;
+  <button class="btn main" id="rvBtn">Odeslat recenzi</button><p class="msg" id="rmsg"></p>`:'<p style="font-size:13px;color:var(--mut)">Pro psaní recenzí se přihlas.</p>'}
+  ${(revs||[]).map(r=>`<div class="rev">${'★'.repeat(r.rating)} <small>${new Date(r.created_at).toLocaleDateString('cs-CZ')}</small><br>${esc(r.body)}</div>`).join('')||'<p style="font-size:13px;color:var(--mut)">Zatím žádné recenze.</p>'}`;
 }
 async function loadAll(){
   let acc=[],from=0;
@@ -305,10 +355,10 @@ $('doIn').onclick=async()=>{
   error?$('amsg').textContent=error.message:$('dlg').close();
 };
 $('doUp').onclick=async()=>{
-  if(!$('agree').checked){$('amsg').style.color='#b3261e';$('amsg').textContent='Pro registraci zaškrtni souhlas s podmínkami a zásadami.';return}
+  if(!$('agree').checked){$('amsg').style.color='var(--danger)';$('amsg').textContent='Pro registraci zaškrtni souhlas s podmínkami a zásadami.';return}
   const {data,error}=await db.auth.signUp({email:$('em').value,password:$('pw').value,options:{data:{terms_accepted_at:new Date().toISOString()}}});
   if(error){$('amsg').textContent=error.message;return}
-  if(!data.session){$('amsg').style.color='#1f7a5a';$('amsg').textContent='Zkontroluj e-mail a potvrď registraci.'}
+  if(!data.session){$('amsg').style.color='var(--ac)';$('amsg').textContent='Zkontroluj e-mail a potvrď registraci.'}
   else $('dlg').close();
 };
 db.auth.onAuthStateChange((_e,s)=>{
@@ -329,7 +379,7 @@ function resize(file){return new Promise((ok,no)=>{
 })}
 document.addEventListener('change',async e=>{
   if(e.target.id!=='phFile'||!e.target.files[0]||!user||!sel)return;
-  const m=$('phMsg');m.style.color='#63706a';m.textContent='Nahrávám…';
+  const m=$('phMsg');m.style.color='var(--mut)';m.textContent='Nahrávám…';
   try{
     const blob=await resize(e.target.files[0]);
     const path=`${user.id}/${sel.id}-${Date.now()}.jpg`;
@@ -339,7 +389,7 @@ document.addEventListener('change',async e=>{
     if(ins.error)throw ins.error;
     if(!isAdmin)alert('Díky! Fotka se ostatním zobrazí po schválení.');
     select(sel.id);
-  }catch(err){m.style.color='#b3261e';m.textContent=err.message||'Nahrání selhalo'}
+  }catch(err){m.style.color='var(--danger)';m.textContent=err.message||'Nahrání selhalo'}
 });
 
 let locAsked=false;
@@ -456,9 +506,9 @@ function note(t){toast(t);clearTimeout(note.t);note.t=setTimeout(()=>{$('toast')
 $('doFg').onclick=async e=>{
   e.preventDefault();
   const em=$('em').value.trim(),m=$('amsg');
-  if(!em){m.style.color='#b3261e';m.textContent='Nahoře zadej svůj e-mail.';return}
+  if(!em){m.style.color='var(--danger)';m.textContent='Nahoře zadej svůj e-mail.';return}
   const {error}=await db.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
-  m.style.color=error?'#b3261e':'#1f7a5a';
+  m.style.color=error?'var(--danger)':'var(--ac)';
   m.textContent=error?error.message:'Poslali jsme ti e-mail s odkazem pro nastavení nového hesla.';
 };
 $('pSave').onclick=async()=>{
@@ -500,16 +550,47 @@ const SER=[
 ['Typy','vyhl','🌄','Znalec výhledů',S=>S.cat.vyhled||0,[10,30,80,200,500]],
 ['Typy','prir','🌲','Přítel přírody',S=>S.cat.priroda||0,[10,30,80,200,500]],
 ['Typy','pam','🏰','Hradní pán',S=>S.cat.pamatka||0,[5,15,40,100,250]],
-['Typy','all','🌈','Všestranný',S=>['vyhled','rozhledna','priroda','pamatka'].filter(k=>S.cat[k]).length,[2,3,4]],
+['Typy','all','🌈','Všestranný',S=>Object.keys(S.cat).length,[]],
 ['Druhy','vodo','💧','Lovec vodopádů',S=>S.kind.vodopad||0,[3,10,25,60,120]],
 ['Druhy','jesk','🦇','Jeskyňář',S=>S.kind.jeskyne||0,[3,10,30,80,200]],
 ['Druhy','vrch','⛰️','Sběratel vrcholů',S=>S.kind.vrchol||0,[10,30,80,200,400]],
 ['Příspěvky','contrib','✍️','Přispěvatel',S=>S.contrib,[1,5,15,40,100]],
 ...REG.map(r=>['Oblasti','r_'+r[0],'📍',r[0],S=>S.reg[r[0]]||0,[3,10,25,60]])
 ];
-const tierOf=(sr,S)=>{const h=sr[4](S);return sr[5].filter(t=>h>=t).length};
-const earned=()=>{const S=stats();return SER.flatMap(sr=>Array.from({length:tierOf(sr,S)},(_,i)=>sr[1]+':'+(i+1)))};
+const CATKEY={rozh:'rozhledna',vyhl:'vyhled',prir:'priroda',pam:'pamatka'};
+const KINDKEY={vodo:'vodopad',jesk:'jeskyne',vrch:'vrchol'};
+const cz=(n,a)=>n===1?a[0]:n>=2&&n<=4?a[1]:a[2];
+function catalog(){
+  const tot={all:places.length,cat:{},kind:{},reg:{}};
+  places.forEach(p=>{
+    tot.cat[p.category]=(tot.cat[p.category]||0)+1;
+    const r=regOf(p);if(r)tot.reg[r]=(tot.reg[r]||0)+1;
+    const d=p.description||'';KIND.forEach(([k,re])=>{if(re.test(d))tot.kind[k]=(tot.kind[k]||0)+1});
+  });
+  const ncat=Object.keys(tot.cat).length;
+  return SER.map(sr=>{
+    const sid=sr[1];let total;
+    if(sid==='tot')total=tot.all;else if(CATKEY[sid])total=tot.cat[CATKEY[sid]]||0;else if(sid==='all')total=ncat;
+    else if(sid==='contrib')total=1e9;else if(sid.startsWith('r_'))total=tot.reg[sr[3]]||0;else total=tot.kind[KINDKEY[sid]]||0;
+    const tiers=sid==='all'?Array.from({length:Math.max(0,ncat-1)},(_,i)=>i+2):sr[5].filter(t=>t<=total);
+    return {sr,tiers};
+  }).filter(x=>x.tiers.length);
+}
+const tierOf=(x,S)=>{const h=x.sr[4](S);return x.tiers.filter(t=>h>=t).length};
+const earned=()=>{const S=stats();return catalog().flatMap(x=>Array.from({length:tierOf(x,S)},(_,i)=>x.sr[1]+':'+(i+1)))};
 const bname=id=>{const [sid,t]=id.split(':'),sr=SER.find(x=>x[1]===sid);return sr[3]+' '+RN[t-1]};
+function how(x,S){
+  const sr=x.sr,sid=sr[1],have=sr[4](S),nx=x.tiers.find(t=>have<t);
+  let t;
+  if(sid==='tot')t='Označ libovolná místa tlačítkem „Byl jsem tady“ v jejich detailu.';
+  else if(CATKEY[sid])t=`Označ tlačítkem „Byl jsem tady“ místa kategorie „${CATS[CATKEY[sid]][0]}“.`;
+  else if(sid==='all')t=`Navštiv místa v co nejvíce různých kategoriích (${Object.values(CATS).map(c=>c[0]).join(', ')}).`;
+  else if(sid==='contrib')t='Získáváš ho za schválené příspěvky: nová místa, fotky a doplněné údaje (cena, dostupnost, nejlepší čas, popis). Každý schválený příspěvek se počítá.';
+  else if(sid.startsWith('r_'))t=`Označ tlačítkem „Byl jsem tady“ místa v oblasti ${sr[3]}. Oblast se určuje přibližně podle polohy místa.`;
+  else t='Označ tlačítkem „Byl jsem tady“ místa tohoto druhu. Druh se pozná z popisu místa.';
+  const unit=sid==='all'?'kategorií':sid==='contrib'?'příspěvků':'míst';
+  return `<p>${t}</p><p><b>Stupně:</b> ${x.tiers.map(v=>(have>=v?'✓ ':'')+v).join(' · ')} ${unit}</p><p>Teď máš: <b>${have}</b>${nx?` · do dalšího stupně zbývá <b>${nx-have}</b>`:' · splnil jsi všechny stupně dostupné v mapě 🎉'}</p>`;
+}
 async function loadContrib(){
   myContrib=0;
   if(!user)return;
@@ -546,24 +627,55 @@ document.addEventListener('click',e=>{if(e.target.id==='visBtn')toggleVisit()});
 $('pasBtn').onclick=()=>{if(!user){openAuth();return}$('pasDlg').showModal();drawPas()};
 $('pasX').onclick=()=>$('pasDlg').close();
 function drawPas(){
-  const S=stats(),E=earned();
+  const S=stats(),cat=catalog(),E=earned();
   const cats=Object.entries(CATS).map(([k,v])=>{
     const all=places.filter(p=>p.category===k).length,have=S.cat[k]||0;
-    return all?`<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${v[0]}</span><span>${have} / ${all}</span></div><div style="height:8px;background:#e8e6df;border-radius:4px"><div style="height:8px;width:${Math.max(have?3:0,Math.min(100,have/all*100))}%;background:${v[1]};border-radius:4px"></div></div></div>`:'';
+    return all?`<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${v[0]}</span><span>${have} / ${all}</span></div><div style="height:8px;background:var(--track);border-radius:4px"><div style="height:8px;width:${Math.max(have?3:0,Math.min(100,have/all*100))}%;background:${v[1]};border-radius:4px"></div></div></div>`:'';
   }).join('');
-  const card=sr=>{
-    const n=tierOf(sr,S),have=sr[4](S),max=sr[5].length,nxt=sr[5][n];
-    return `<div style="border:1px solid ${n?'#ffc400':'#e2ded3'};border-radius:12px;padding:8px;text-align:center;${n?'background:#fff8e1':'opacity:.6'}"><div style="font-size:26px;${n?'':'filter:grayscale(1)'}">${sr[2]}</div><b style="font-size:13px">${esc(sr[3])}${n?' '+RN[n-1]:''}</b><div style="font-size:12px;letter-spacing:1px;color:#d4a017">${'★'.repeat(n)}${'☆'.repeat(max-n)}</div><div style="font-size:12px;color:#63706a">${nxt?have+' / '+nxt:'Maximum'}</div></div>`;
+  const card=x=>{
+    const sr=x.sr,n=tierOf(x,S),have=sr[4](S),nxt=x.tiers[n],prev=n?x.tiers[n-1]:0,pc=nxt?Math.max(0,Math.min(100,(have-prev)/(nxt-prev)*100)):100;
+    return `<div class="bd${n?' on':''}"><button class="ib" data-info="${sr[1]}" aria-label="Jak získat odznak" title="Jak získat odznak">i</button><div class="bi">${sr[2]}</div><b>${esc(sr[3])}${n?' '+RN[n-1]:''}</b><div class="bp"><div style="width:${pc}%"></div></div><div class="bt">${nxt?have+' / '+nxt:'Maximum'}</div><div class="bs">stupeň ${n} z ${x.tiers.length}</div></div>`;
   };
-  const sec=g=>`<h4>${g}</h4><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px">${SER.filter(sr=>sr[0]===g).map(card).join('')}</div>`;
+  const sec=g=>{const L=cat.filter(x=>x.sr[0]===g);return L.length?`<h4>${g}</h4><div class="bgrid">${L.map(card).join('')}</div>`:''};
   const rec=Object.keys(visitAt).map(id=>places.find(p=>p.id===id)).filter(Boolean).sort((a,b)=>visitAt[b.id].localeCompare(visitAt[a.id])).slice(0,8);
-  $('pasBody').innerHTML=`<p style="font-size:18px;margin:0"><b>${S.total}</b> navštívených míst z ${places.length} · <b>${E.length}</b> získaných odznaků</p>
-  <h4>Podle typu</h4>${cats}
+  $('pasBody').innerHTML=`<p style="font-size:18px;margin:0"><b>${S.total}</b> ${cz(S.total,['navštívené místo','navštívená místa','navštívených míst'])} z ${places.length} · <b>${E.length}</b> ${cz(E.length,['získaný odznak','získané odznaky','získaných odznaků'])}</p>
+  <p class="n" style="font-size:13px;margin:4px 0 0;color:var(--mut)">Klepnutím na „i“ u odznaku zjistíš, jak ho získat.</p>
+  <h4>Postup v mapě</h4>${cats}
   ${['Celkem','Typy','Druhy','Příspěvky','Oblasti'].map(sec).join('')}
-  <p class="n" style="font-size:12px">Příspěvky: schválené fotky, nová místa a doplněné údaje. Oblasti se určují přibližně podle polohy místa.</p>
-  <h4>Poslední návštěvy</h4>${rec.length?rec.map(p=>`<div class="item" data-fly="${p.id}"><span><b>${esc(p.name)}</b><br><small>${CATS[p.category][0]}</small></span><small>${new Date(visitAt[p.id]).toLocaleDateString('cs-CZ')}</small></div>`).join(''):'<p class="n">Zatím nic. U místa klepni na „Byl jsem tady“.</p>'}`;
+  <p style="font-size:12px;color:var(--mut)">Příspěvky: schválené fotky, nová místa a doplněné údaje. Oblasti se určují přibližně podle polohy místa. Zobrazují se jen odznaky, které jde v dané mapě získat.</p>
+  <h4>Poslední návštěvy</h4>${rec.length?rec.map(p=>`<div class="item" data-fly="${p.id}"><span><b>${esc(p.name)}</b><br><small>${CATS[p.category][0]}</small></span><small>${new Date(visitAt[p.id]).toLocaleDateString('cs-CZ')}</small></div>`).join(''):'<p style="color:var(--mut)">Zatím nic. U místa klepni na „Byl jsem tady“.</p>'}`;
+  $('pasBody').scrollTop=0;
 }
-$('pasBody').addEventListener('click',e=>{const f=e.target.closest('[data-fly]');if(f){$('pasDlg').close();select(f.dataset.fly,true)}});
+$('pasBody').addEventListener('click',e=>{
+  const i=e.target.closest('[data-info]');
+  if(i){const x=catalog().find(y=>y.sr[1]===i.dataset.info);if(x){$('infoT').textContent=x.sr[2]+' '+x.sr[3];$('infoP').innerHTML=how(x,stats());$('infoDlg').showModal()}return}
+  const f=e.target.closest('[data-fly]');if(f){$('pasDlg').close();select(f.dataset.fly,true)}
+});
+$('infoX').onclick=()=>$('infoDlg').close();
+
+function drawSet(){
+  const mk=(opts,key)=>opts.map(([v,l])=>`<button class="btn${PREF[key]===v?' main':''}" data-pref="${key}" data-v="${v}">${l}</button>`).join('');
+  const d=isDark();
+  $('setBody').innerHTML=`<h4>Režim</h4><div class="row">${mk([['light','☀️ Světlý'],['dark','🌙 Noční'],['auto','🌓 Podle zařízení']],'mode')}</div>
+  <h4>Barevný motiv</h4><div class="sw2">${Object.entries(TH).map(([k,t])=>{const c=t[d?2:1];return `<button class="swb${PREF.color===k?' sel':''}" data-pref="color" data-v="${k}"><span style="background:${c[0]};border-color:${c[1]}"><i style="background:${c[1]}"></i></span>${t[0]}</button>`}).join('')}</div>
+  <h4>Tvar tlačítek</h4><div class="row">${mk([['bubble','Bubliny'],['classic','Klasická']],'shape')}</div>`;
+}
+$('setBody').addEventListener('click',e=>{
+  const b=e.target.closest('[data-pref]');if(!b)return;
+  PREF[b.dataset.pref]=b.dataset.v;
+  try{localStorage.setItem('vzhled',JSON.stringify(PREF))}catch(x){}
+  applyTheme();drawSet();
+});
+$('setBtn').onclick=()=>{$('setDlg').showModal();drawSet()};
+$('setX').onclick=()=>$('setDlg').close();
+function themeMap(){
+  try{
+    const d=isDark(),ac=getComputedStyle(document.documentElement).getPropertyValue('--ac').trim();
+    if(map.getLayer('osm')){map.setPaintProperty('osm','raster-brightness-max',d?.55:1);map.setPaintProperty('osm','raster-saturation',d?-.3:0);map.setPaintProperty('osm','raster-contrast',d?.1:0)}
+    if(map.getLayer('cl')&&ac)map.setPaintProperty('cl','circle-color',ac);
+  }catch(e){}
+}
+window.__onTheme=themeMap;
 
 const FL={price_info:'Cena',access_info:'Dostupnost',best_time:'Nejlepší čas',description:'Popis'};
 const HINT={price_info:'Např. „Zdarma“ nebo „Vstupné 60 Kč“.',access_info:'Např. „20 min pěšky od parkoviště, vhodné i s kočárkem“.',best_time:'Např. „západ slunce“, „ráno“ nebo „na podzim“.',description:'Krátce popiš, co tam je a čím je místo zajímavé.'};
