@@ -114,7 +114,7 @@ try{matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:var(--mut);font-weight:400">v23</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:var(--mut);font-weight:400">v24</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn" id="setBtn" title="Vzhled" aria-label="Vzhled">🎨</button>
@@ -291,7 +291,7 @@ async function select(id,fly){
   const p=sel,fav=favs.has(id);
   $('panel').innerHTML=`<h2 style="margin:0 0 6px">${esc(p.name)}</h2>
   <span class="tag" style="background:${CATS[p.category][1]}">${CATS[p.category][0]}</span> <small>${stars(id)}${dist(p)}</small>
-  ${p.photo_url&&p.photo_url.startsWith('https://commons.wikimedia.org/')?`<img src="${esc(p.photo_url)}" alt="${esc(p.name)}" loading="lazy" style="width:100%;border-radius:10px;margin:8px 0 2px"><small><a target="_blank" rel="noopener" href="${esc(p.photo_credit)}">Foto: Wikimedia Commons</a></small>`:''}
+  ${p.photo_url&&p.photo_url.startsWith('https://commons.wikimedia.org/')?`<img src="${esc(p.photo_url)}" alt="${esc(p.name)}" loading="lazy" style="width:100%;border-radius:10px;margin:8px 0 2px"><small><a target="_blank" rel="noopener" href="${esc(p.photo_credit)}">Foto: Wikimedia Commons</a></small>`:((phs||[]).length?'':`<div style="margin:10px 0;padding:14px;border:2px dashed var(--line2);border-radius:16px;text-align:center"><div style="font-size:26px">📷</div><div style="font-size:14px;margin:4px 0 8px"><b>Toto místo zatím nemá fotku.</b><br>Buď první, kdo ji přidá.</div><button class="btn main" id="addPhotoBtn">Přidat fotku</button></div>`)}
   <p style="font-size:14px;line-height:1.5">${esc(p.description)}</p>${(p.description||'').length<30?(pendSug.has('description')?'<p class="n" style="margin:-8px 0 8px">Návrh popisu čeká na schválení.</p>':'<p style="margin:-8px 0 8px"><a href="#" data-sug="description" style="font-size:13px">Doplnit popis</a></p>'):''}
   <div class="facts">${fact('Nejlepší čas','best_time',p.best_time)}${fact('Dostupnost','access_info',p.access_info)}${fact('Cena','price_info',p.price_info)}<div><b>Souřadnice</b>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div></div>
   <div class="row"><button class="btn main" id="favBtn">${fav?'★ V oblíbených':'☆ Do oblíbených'}</button><button class="btn${visited.has(p.id)?' main':''}" id="visBtn">${visited.has(p.id)?'✓ Byl jsem tady':'Byl jsem tady'}</button>
@@ -530,12 +530,13 @@ $('delAcc').onclick=async e=>{
     alert('Účet byl smazán.');
   }catch(err){alert('Smazání se nepovedlo: '+(err.message||err))}
 };
-let visited=new Set(),visitAt={},myContrib=0,pendSug=new Set();
+let visited=new Set(),visitAt={},myContrib=0,myPhotos=0,pendSug=new Set();
+document.addEventListener('click',e=>{if(e.target.id!=='addPhotoBtn')return;if(!user){openAuth();return}const f=$('phFile');if(f)f.click()});
 const REG=[['Krkonoše',50.60,50.85,15.30,16.10],['Šumava',48.70,49.35,13.00,14.20],['Jeseníky',49.95,50.30,16.95,17.50],['Beskydy',49.30,49.70,18.10,18.70],['České Švýcarsko',50.78,51.00,14.10,14.55],['Praha',49.94,50.18,14.22,14.71],['Český ráj',50.45,50.62,14.90,15.35],['Moravský kras',49.28,49.45,16.62,16.88],['Pálava',48.78,48.95,16.55,16.80],['Třeboňsko',48.85,49.20,14.45,15.05],['Orlické hory',50.20,50.45,16.20,16.60],['Krušné hory',50.30,50.60,12.40,13.60],['Vysočina',49.30,49.80,15.80,16.30],['Brdy',49.55,49.80,13.70,14.10],['Novohradské hory',48.60,48.85,14.50,15.10],['Bílé Karpaty',48.75,49.10,17.40,18.00],['Lužické hory a Ještěd',50.70,50.90,14.40,15.00]];
 const KIND=[['vodopad',/vodop/i],['jeskyne',/jeskyn/i],['vrchol',/vrchol/i]];
 const regOf=p=>{const r=REG.find(([,a,b,c,d])=>p.lat>=a&&p.lat<=b&&p.lng>=c&&p.lng<=d);return r?r[0]:null};
 function stats(){
-  const S={total:0,cat:{},reg:{},kind:{},contrib:myContrib};
+  const S={total:0,cat:{},reg:{},kind:{},contrib:myContrib,photos:myPhotos};
   places.filter(p=>visited.has(p.id)).forEach(p=>{
     S.total++;S.cat[p.category]=(S.cat[p.category]||0)+1;
     const r=regOf(p);if(r)S.reg[r]=(S.reg[r]||0)+1;
@@ -555,6 +556,7 @@ const SER=[
 ['Druhy','jesk','🦇','Jeskyňář',S=>S.kind.jeskyne||0,[3,10,30,80,200]],
 ['Druhy','vrch','⛰️','Sběratel vrcholů',S=>S.kind.vrchol||0,[10,30,80,200,400]],
 ['Příspěvky','contrib','✍️','Přispěvatel',S=>S.contrib,[1,5,15,40,100]],
+['Příspěvky','foto','📷','Fotograf',S=>S.photos,[1,5,15,40,100]],
 ...REG.map(r=>['Oblasti','r_'+r[0],'📍',r[0],S=>S.reg[r[0]]||0,[3,10,25,60]])
 ];
 const CATKEY={rozh:'rozhledna',vyhl:'vyhled',prir:'priroda',pam:'pamatka'};
@@ -571,7 +573,7 @@ function catalog(){
   return SER.map(sr=>{
     const sid=sr[1];let total;
     if(sid==='tot')total=tot.all;else if(CATKEY[sid])total=tot.cat[CATKEY[sid]]||0;else if(sid==='all')total=ncat;
-    else if(sid==='contrib')total=1e9;else if(sid.startsWith('r_'))total=tot.reg[sr[3]]||0;else total=tot.kind[KINDKEY[sid]]||0;
+    else if(sid==='contrib'||sid==='foto')total=1e9;else if(sid.startsWith('r_'))total=tot.reg[sr[3]]||0;else total=tot.kind[KINDKEY[sid]]||0;
     const tiers=sid==='all'?Array.from({length:Math.max(0,ncat-1)},(_,i)=>i+2):sr[5].filter(t=>t<=total);
     return {sr,tiers};
   }).filter(x=>x.tiers.length);
@@ -585,18 +587,19 @@ function how(x,S){
   if(sid==='tot')t='Označ libovolná místa tlačítkem „Byl jsem tady“ v jejich detailu.';
   else if(CATKEY[sid])t=`Označ tlačítkem „Byl jsem tady“ místa kategorie „${CATS[CATKEY[sid]][0]}“.`;
   else if(sid==='all')t=`Navštiv místa v co nejvíce různých kategoriích (${Object.values(CATS).map(c=>c[0]).join(', ')}).`;
+  else if(sid==='foto')t='Nahraj vlastní fotky míst (tlačítko „Přidat fotku“ v detailu místa). Do odznaku se počítají fotky, které správce schválí.';
   else if(sid==='contrib')t='Získáváš ho za schválené příspěvky: nová místa, fotky a doplněné údaje (cena, dostupnost, nejlepší čas, popis). Každý schválený příspěvek se počítá.';
   else if(sid.startsWith('r_'))t=`Označ tlačítkem „Byl jsem tady“ místa v oblasti ${sr[3]}. Oblast se určuje přibližně podle polohy místa.`;
   else t='Označ tlačítkem „Byl jsem tady“ místa tohoto druhu. Druh se pozná z popisu místa.';
-  const unit=sid==='all'?'kategorií':sid==='contrib'?'příspěvků':'míst';
+  const unit=sid==='all'?'kategorií':sid==='contrib'?'příspěvků':sid==='foto'?'fotek':'míst';
   return `<p>${t}</p><p><b>Stupně:</b> ${x.tiers.map(v=>(have>=v?'✓ ':'')+v).join(' · ')} ${unit}</p><p>Teď máš: <b>${have}</b>${nx?` · do dalšího stupně zbývá <b>${nx-have}</b>`:' · splnil jsi všechny stupně dostupné v mapě 🎉'}</p>`;
 }
 async function loadContrib(){
-  myContrib=0;
+  myContrib=0;myPhotos=0;
   if(!user)return;
   const q=(t,col,extra)=>db.from(t).select('id',{count:'exact',head:true}).eq(col,user.id).eq('status','approved');
   const [a,b,c]=await Promise.all([q('place_edits','user_id'),q('photos','user_id'),q('places','created_by')]);
-  myContrib=(a.count||0)+(b.count||0)+(c.count||0);
+  myContrib=(a.count||0)+(b.count||0)+(c.count||0);myPhotos=b.count||0;
 }
 async function loadVisits(){
   visited=new Set();visitAt={};
