@@ -90,6 +90,7 @@ dialog::backdrop{background:#0007}
   .item{padding:14px 2px;font-size:16px}
   .facts div{font-size:15px}
   .maplibregl-ctrl-group button{width:44px;height:44px}
+  .maplibregl-ctrl-bottom-right{top:4px;bottom:auto;left:4px;right:auto}
 }
 </style>
 <script>
@@ -114,17 +115,18 @@ try{matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function
 </head>
 <body>
 <header>
-<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:var(--mut);font-weight:400">v24</small></h1>
+<h1>⛰️ Vyhlídky ČR <small style="font-size:11px;color:var(--mut);font-weight:400">v25</small></h1>
 <input id="q" type="search" placeholder="Hledat podle názvu…" style="width:220px;margin:0">
 <span id="who" style="font-size:13px"></span>
 <button class="btn" id="setBtn" title="Vzhled" aria-label="Vzhled">🎨</button>
+<button class="btn" id="aboutBtn" title="Informace" aria-label="Informace">ⓘ</button>
 <button class="btn" id="pasBtn">🏅 Pas</button>
 <button class="btn" id="admBtn" hidden>Správa</button>
 <button class="btn" id="addBtn">+ Přidat místo</button>
 <button class="btn main" id="authBtn">Přihlásit</button>
 <div class="chips" id="chips"></div>
 </header>
-<div class="wrap"><div id="map"></div><div id="sheet"><div id="grab" role="button" aria-label="Zvětšit nebo zmenšit seznam"></div><div id="panel"></div><div id="legal" style="flex:none;font-size:12px;padding:6px 14px;border-top:1px solid var(--line);color:var(--mut)"><a href="podminky.html" target="_blank">Podmínky</a> · <a href="soukromi.html" target="_blank">Soukromí</a> · <a href="#" id="delAcc" hidden>Smazat účet</a> · Data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div>
+<div class="wrap"><div id="map"></div><div id="sheet"><div id="grab" role="button" aria-label="Zvětšit nebo zmenšit seznam"></div><div id="panel"></div></div></div>
 
 <dialog id="dlg">
 <h3 style="margin-top:0">Přihlášení</h3>
@@ -174,6 +176,17 @@ try{matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function
 <div class="dh"><h3 style="margin:0">Cestovní pas</h3><button class="btn" id="pasX">Zavřít</button></div>
 <div id="pasBody" class="db"></div>
 </dialog>
+<dialog id="aboutDlg">
+<div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Informace</h3><button class="btn main" id="aboutX">Zavřít</button></div>
+<p style="font-size:14px;color:var(--mut)">Vyhlídky ČR – mapa vyhlídek, rozhleden a zajímavých míst v Česku.</p>
+<div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
+<a class="btn" href="podminky.html" target="_blank" style="text-decoration:none;text-align:center">Podmínky použití</a>
+<a class="btn" href="soukromi.html" target="_blank" style="text-decoration:none;text-align:center">Zásady ochrany osobních údajů</a>
+<a class="btn" href="#" id="delAcc" hidden style="text-decoration:none;text-align:center;color:var(--danger)">Smazat účet</a>
+</div>
+<h4 style="margin:14px 0 4px">Zdroje dat</h4>
+<p style="font-size:13px;color:var(--mut);margin:0">Mapa a část údajů © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (licence ODbL). Některé fotografie pocházejí z Wikimedia Commons, u každé je odkaz na autora a licenci.</p>
+</dialog>
 <dialog id="infoDlg"><h3 id="infoT" style="margin-top:0"></h3><div id="infoP" style="font-size:14px;line-height:1.5"></div><div class="row" style="margin-top:12px"><button class="btn main" id="infoX">Rozumím</button></div></dialog>
 <dialog id="setDlg" style="width:min(440px,96vw)"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Vzhled</h3><button class="btn main" id="setX">Hotovo</button></div><div id="setBody"></div></dialog>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -193,7 +206,8 @@ const map=new maplibregl.Map({
   style:{version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© přispěvatelé OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]}
 });
 map.addControl(new maplibregl.NavigationControl());
-map.addControl(new maplibregl.AttributionControl({compact:true}),'top-left');
+map.addControl(new maplibregl.AttributionControl({compact:innerWidth<=800}),'bottom-right');
+function collapseAttr(){try{if(innerWidth<=800){const c=document.querySelector('.maplibregl-ctrl-attrib');c.classList.remove('maplibregl-compact-show');c.removeAttribute('open')}}catch(e){}}
 let meMarker=null;
 function toast(t){const el=$('toast');el.textContent=t;el.hidden=false}
 function locate(){
@@ -236,7 +250,7 @@ map.on('load',()=>{
   map.on('click','cl',async e=>{const f=e.features[0];const z=await map.getSource('pl').getClusterExpansionZoom(f.properties.cluster_id);map.easeTo({center:f.geometry.coordinates,zoom:z})});
   map.on('click','pt',e=>select(e.features[0].properties.id,true));
   ['cl','pt'].forEach(l=>{map.on('mouseenter',l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',l,()=>map.getCanvas().style.cursor='')});
-  mapReady=true;drawMarkers();themeMap();
+  mapReady=true;drawMarkers();themeMap();collapseAttr();
 });
 map.on('moveend',()=>{if(!sel)drawList()});
 let clMarkers={};
@@ -671,6 +685,8 @@ $('setBody').addEventListener('click',e=>{
 });
 $('setBtn').onclick=()=>{$('setDlg').showModal();drawSet()};
 $('setX').onclick=()=>$('setDlg').close();
+$('aboutBtn').onclick=()=>$('aboutDlg').showModal();
+$('aboutX').onclick=()=>$('aboutDlg').close();
 function themeMap(){
   try{
     const d=isDark(),ac=getComputedStyle(document.documentElement).getPropertyValue('--ac').trim();
